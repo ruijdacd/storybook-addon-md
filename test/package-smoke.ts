@@ -66,6 +66,7 @@ try {
   await writeFile(path.join(project, 'docs/Asset-check.md'), '![Asset check](./assets/button.svg)');
 
   await cp('.npmrc', path.join(project, '.npmrc'));
+  await cp('nub.jsonc', path.join(project, 'nub.jsonc'));
   await run(['install', '--no-frozen-lockfile'], project);
   await run(['exec', '--', 'storybook', 'build', '--disable-telemetry'], project);
 
