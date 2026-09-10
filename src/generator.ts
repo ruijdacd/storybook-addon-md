@@ -7,6 +7,7 @@ import { discover, fail, localFile, slash } from './content.js';
 const attribute = (value: string) =>
   value.replace(/[&"<>\r\n]/g, (character) => `&#${character.charCodeAt(0)};`);
 const id = (value: string) => createHash('sha256').update(value).digest('hex').slice(0, 16);
+export const pageFile = (key: string) => `page-${id(key)}.mdx`;
 const specifier = (from: string, to: string) => {
   const relative = slash(path.relative(from, to));
 
@@ -114,7 +115,7 @@ export async function generate(options: ContentOptions) {
       : `<Meta title="${attribute(group.title!)}" />`;
 
     files.set(
-      `page-${id(key)}.mdx`,
+      pageFile(key),
       `${imports.join('\n')}\n\n${meta}\n\n<Documentation documents={[${group.documents.map((_, index) => `document${index}`).join(', ')}]} attached={${Boolean(group.story)}} title={${JSON.stringify(group.title ?? '')}}${presentation ? ' presentation={presentation}' : ''} />\n`,
     );
   }

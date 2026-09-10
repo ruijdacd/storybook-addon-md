@@ -1,4 +1,5 @@
 export interface MarkdownOptions {
+  manifests?: boolean;
   generatedDir?: string;
   patterns: string[];
   stylesheet?: string;

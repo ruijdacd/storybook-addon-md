@@ -1,5 +1,6 @@
 node_modules/
 storybook-static/
+storybook-static-mcp/
 storybook-markdown-generated/
 playwright-report/
 test-results/

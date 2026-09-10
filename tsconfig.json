@@ -20,6 +20,8 @@
     "vitest*.config.ts",
     "test/**/*.ts",
     "test/**/*.tsx",
-    "playwright.config.ts"
+    "playwright.config.ts",
+    "example/.storybook-mcp/*.ts",
+    "tsdown.config.ts"
   ]
 }

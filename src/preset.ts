@@ -1,3 +1,4 @@
+import type { PresetPropertyFn, StorybookConfigRaw } from 'storybook/internal/types';
 import type { UserConfig, ViteDevServer } from 'vite';
 import type { MarkdownOptions } from './index.js';
 import type { ContentOptions, DiscoveredDocument } from './content.js';
@@ -5,6 +6,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { watch } from 'chokidar';
 import picomatch from 'picomatch';
+import { updateManifests } from './manifest.js';
 import { generate, writeChanged } from './generator.js';
 import { fail, slash } from './content.js';
 
@@ -73,7 +75,10 @@ export function watchDocumentation(
   {
     onError = () => {},
     onUpdate = () => {},
-  }: { onError?: (error: Error) => void; onUpdate?: () => void } = {},
+  }: {
+    onError?: (error: Error) => void;
+    onUpdate?: (documents: DiscoveredDocument[]) => void;
+  } = {},
 ) {
   const isNegative = (pattern: string) => pattern.startsWith('!') && !pattern.startsWith('!(');
   const positive = config.patterns.filter((pattern) => !isNegative(pattern));
@@ -114,7 +119,7 @@ export function watchDocumentation(
             }
           }
         }
-        onUpdate();
+        onUpdate(documents);
       } catch (caught) {
         const error = caught instanceof Error ? caught : new Error(String(caught));
 
@@ -185,6 +190,11 @@ export async function viteFinal(config: UserConfig, options: PresetOptions): Pro
         name: 'storybook-addon-md',
         configureServer(server: ViteDevServer) {
           const watcher = watchDocumentation(session, {
+            onUpdate(documents) {
+              const current = sessions.get(path.resolve(options.configDir));
+
+              if (current) current.ready = Promise.resolve(documents);
+            },
             onError(error) {
               server.config.logger.error(error.message);
               server.ws.send({ type: 'error', err: { message: error.message, stack: '' } });
@@ -201,3 +211,14 @@ export async function viteFinal(config: UserConfig, options: PresetOptions): Pro
 export function webpackFinal() {
   throw fail('builder', 'only @storybook/react-vite 10.6.0 with Vite 7 is supported');
 }
+
+export const experimental_manifests = (async (
+  manifests: NonNullable<StorybookConfigRaw['experimental_manifests']> = {},
+  options: Pick<PresetOptions, 'configDir' | 'manifests'>,
+) => {
+  const session = sessions.get(path.resolve(options.configDir));
+
+  if (!options.manifests || !session) return manifests;
+
+  return updateManifests(manifests, await session.ready, session.config);
+}) satisfies PresetPropertyFn<'experimental_manifests'>;
