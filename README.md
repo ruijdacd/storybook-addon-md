@@ -93,29 +93,62 @@ Without a title, `docs/Introduction.md` appears at `Documentation/docs/Introduct
 
 YAML frontmatter is optional. Use lowercase field names.
 
-| Field        | Meaning                                            |
-| ------------ | -------------------------------------------------- |
-| `title`      | Sidebar location for standalone pages.             |
-| `stories`    | Relative story-file path or array of paths.        |
-| `tags`       | Array of labels rendered as chips below the title. |
-| `status`     | A chip with its value preserved in `data-status`.  |
-| Other fields | Preserved as metadata for custom presentation.     |
+| Field         | Meaning                                             |
+| ------------- | --------------------------------------------------- |
+| `title`       | Sidebar location for standalone pages.              |
+| `stories`     | Relative story-file path or array of paths.         |
+| `tags`        | Array of labels rendered as chips below the title.  |
+| `description` | Optional string summary in documentation manifests. |
+| `status`      | A chip with its value preserved in `data-status`.   |
+| Other fields  | Preserved as metadata for custom presentation.      |
 
 Invalid frontmatter, missing or ambiguous story references, and missing local assets produce source-specific errors.
 
 ## Configuration
 
-| Option         | Default                        | Purpose                                                       |
-| -------------- | ------------------------------ | ------------------------------------------------------------- |
-| `patterns`     | Required                       | Markdown globs; prefix with `!` to exclude files.             |
-| `root`         | `..`                           | Project folder, resolved from the Storybook config directory. |
-| `generatedDir` | `storybook-markdown-generated` | Disposable output folder under the working directory.         |
-| `stylesheet`   | None                           | Custom stylesheet path.                                       |
-| `presentation` | None                           | Module exporting `Layout` and/or `MarkdownRenderer`.          |
+| Option         | Default                        | Purpose                                                         |
+| -------------- | ------------------------------ | --------------------------------------------------------------- |
+| `patterns`     | Required                       | Markdown globs; prefix with `!` to exclude files.               |
+| `root`         | `..`                           | Project folder, resolved from the Storybook config directory.   |
+| `generatedDir` | `storybook-markdown-generated` | Disposable output folder under the working directory.           |
+| `stylesheet`   | None                           | Custom stylesheet path.                                         |
+| `manifests`    | `false`                        | Include original Markdown in Storybook documentation manifests. |
+| `presentation` | None                           | Module exporting `Layout` and/or `MarkdownRenderer`.            |
 
 Globs and customization paths start from your project folder (the parent of `.storybook` by default). Keep the config and local files inside that folder. Restart Storybook after changing options.
 
 `generatedDir` must be a visible folder name using letters, digits, hyphens, or underscores. Hidden folders, nested paths, `node_modules`, and `storybook-static` are unsupported. Ignore the folder in Git; the addon manages its contents.
+
+## Documentation manifests and MCP
+
+Manifest support is opt-in. Set `manifests: true` in this addon's options and enable Storybook's `features.componentsManifest`:
+
+```ts
+const config: StorybookConfig = {
+  framework: '@storybook/react-vite',
+  features: { componentsManifest: true },
+  stories: ['../src/**/*.stories.@(ts|tsx|js|jsx)'],
+  addons: [
+    '@storybook/addon-docs',
+    '@storybook/addon-mcp',
+    {
+      name: 'storybook-addon-md',
+      options: {
+        patterns: ['src/**/*.md', 'docs/**/*.md'],
+        manifests: true,
+      },
+    },
+  ],
+};
+```
+
+For MCP access, install `@storybook/addon-mcp@10.6.0` and connect your MCP client to `http://localhost:6006/mcp`. Its Get Documentation tool is named `docs-show` in 10.6.0. Omit that addon if you only need JSON manifests. It is not a dependency of `storybook-addon-md`.
+
+With Storybook and React Vite **10.6.0**, standalone Markdown appears in `/manifests/docs.json`, and attached Markdown appears in the component's `docs` in `/manifests/components.json`. Both development and static builds include the complete original source, including frontmatter. Development updates use the existing file watcher. Shared documents appear under each associated component; multiple documents on one page are joined in discovery order with two newlines. String `description` values supply optional summaries.
+
+Keep this addon after `@storybook/addon-docs`. Consumers can remove custom manifest presets that supplied Markdown content after enabling this option. Unrelated MDX, Autodocs, and other manifest fields are preserved. Storybook's manifest tag filtering still applies.
+
+This integration uses Storybook 10.6.0's experimental preset hook and inline (v0) manifests. Other Storybook versions and `features.experimentalDocgenServer` service-backed manifests are unsupported. Markdown links and assets remain as authored in manifest content. See [Storybook manifests](https://storybook.js.org/docs/ai/manifests) for the upstream feature.
 
 ## Styling
 
@@ -141,14 +174,22 @@ See [Styling](STYLING.md) for all variables, status colors, theme switching, and
 - Set Storybook’s `parameters.options.storySort` for explicit sidebar ordering. See the [example preview](https://github.com/ruijdacd/storybook-addon-md/blob/main/example/.storybook/preview.ts).
 - The attached Docs entry name **Markdown** is reserved. Multiple development Storybooks sharing one config directory are unsupported.
 
-## Example and contributing
+## Examples and contributing
 
-Run the included Storybook with **Nub 0.7.5** and **Node 24**:
+Install dependencies with **Nub 0.7.5** and **Node 24.11+**:
 
 ```sh
 nub install
-nub run storybook
 ```
+
+Choose either example. They share stories, Markdown, and styling, with separate Storybook configurations:
+
+| Example     | Configuration                         | Run                            | Build                         |
+| ----------- | ------------------------------------- | ------------------------------ | ----------------------------- |
+| Without MCP | [Default](example/.storybook/main.ts) | `nub run storybook` (6006)     | `nub run build-storybook`     |
+| With MCP    | [MCP](example/.storybook-mcp/main.ts) | `nub run storybook:mcp` (6007) | `nub run build-storybook:mcp` |
+
+The MCP example enables `manifests: true` and `@storybook/addon-mcp`. Connect your MCP client to `http://localhost:6007/mcp`. Static builds write to `storybook-static/` and `storybook-static-mcp/`, respectively. MCP is a development dependency for the example only; normal addon usage does not require it.
 
 Browse **Guides → Introduction**, **Components → Button**, and **Components → Toggle** for standalone, attached, and shared docs with system light/dark styling.
 

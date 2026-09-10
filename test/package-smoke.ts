@@ -32,6 +32,7 @@ try {
       devDependencies: {
         'storybook-addon-md': `file:${filename}`,
         '@storybook/addon-docs': '10.6.0',
+        '@storybook/addon-mcp': '10.6.0',
         '@storybook/react-vite': '10.6.0',
         storybook: '10.6.0',
         react: '19.2.4',
@@ -55,7 +56,7 @@ try {
         module: 'ESNext',
         moduleResolution: 'Bundler',
       },
-      include: ['components', '.storybook'],
+      include: ['components', '.storybook', '.storybook-mcp'],
     }),
   );
   await mkdir(path.join(project, 'docs/assets'), { recursive: true });
@@ -67,8 +68,13 @@ try {
 
   await cp('.npmrc', path.join(project, '.npmrc'));
   await cp('nub.jsonc', path.join(project, 'nub.jsonc'));
+  const mainFile = path.join(project, '.storybook/main.ts');
+
   await run(['install', '--no-frozen-lockfile'], project);
-  await run(['exec', '--', 'storybook', 'build', '--disable-telemetry'], project);
+  await run(
+    ['exec', '--', 'storybook', 'build', '-c', '.storybook-mcp', '--disable-telemetry'],
+    project,
+  );
 
   const { entries } = JSON.parse(
     await readFile(path.join(project, 'storybook-static/index.json'), 'utf8'),
@@ -82,6 +88,23 @@ try {
     assert.equal(entries[id]?.type, 'docs', id);
   }
 
+  const staticDocs = JSON.parse(
+    await readFile(path.join(project, 'storybook-static/manifests/docs.json'), 'utf8'),
+  );
+  const staticComponents = JSON.parse(
+    await readFile(path.join(project, 'storybook-static/manifests/components.json'), 'utf8'),
+  );
+  const shared = await readFile(path.join(project, 'docs/Shared.md'), 'utf8');
+
+  assert.equal(
+    staticDocs.docs['guides-introduction--docs'].content,
+    await readFile(path.join(project, 'docs/Introduction.md'), 'utf8'),
+  );
+  assert.equal(
+    staticComponents.components['components-button'].docs['components-button--markdown'].content,
+    `${await readFile(path.join(project, 'components/Button.metadata.md'), 'utf8')}\n\n${shared}`,
+  );
+
   const builtAssets = await readdir(path.join(project, 'storybook-static/assets'));
 
   assert(builtAssets.some((name) => /^button-.*\.svg$/.test(name)));
@@ -89,7 +112,10 @@ try {
   await rm(path.join(project, 'docs/assets/button.svg'));
 
   await assert.rejects(
-    run(['exec', '--', 'storybook', 'build', '--disable-telemetry'], project),
+    run(
+      ['exec', '--', 'storybook', 'build', '-c', '.storybook-mcp', '--disable-telemetry'],
+      project,
+    ),
     (error) => {
       assert(error instanceof Error);
       assert.match(
@@ -103,8 +129,6 @@ try {
       return true;
     },
   );
-
-  const mainFile = path.join(project, '.storybook/main.ts');
 
   await writeFile(
     mainFile,
@@ -124,6 +148,8 @@ try {
     [
       path.join(project, 'node_modules/storybook', storybookPackage.bin),
       'dev',
+      '-c',
+      '.storybook-mcp',
       '--ci',
       '--no-open',
       '--disable-telemetry',
@@ -184,8 +210,30 @@ try {
       .getByRole('heading', { name: 'First document after startup' }),
   ).toBeVisible({ timeout: 15000 });
 
+  const manifestUrl = 'http://localhost:16008/manifests/docs.json';
+  const original = await readFile(path.join(project, 'empty-docs/First.md'), 'utf8');
+
+  await expect
+    .poll(async () => (await (await fetch(manifestUrl)).json()).docs['guides-first--docs']?.content)
+    .toBe(original);
+
+  const mcpResponse = await fetch('http://localhost:16008/mcp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: { name: 'docs-show', arguments: { id: 'guides-first--docs' } },
+    }),
+  });
+  const mcpText = await mcpResponse.text();
+
+  assert.equal(mcpResponse.status, 200, mcpText);
+  assert(mcpText.includes(JSON.stringify(original).slice(1, -1)), mcpText);
+
   console.log(
-    'Packed consumer: static build, missing-asset failure, and first Markdown added after startup passed.',
+    'Packed consumer: static build, missing-asset failure, live manifests, real MCP documentation, and first Markdown added after startup passed.',
   );
 } catch (error) {
   console.error(error, output);

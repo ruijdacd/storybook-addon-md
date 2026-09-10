@@ -254,12 +254,14 @@ export async function discover({ root, patterns, output }: ContentOptions) {
       .map(async (file) => {
         await localFile(file, root, file, 'Markdown file');
 
-        const { body, metadata } = parseMarkdown(await readFile(file, 'utf8'), file);
+        const original = await readFile(file, 'utf8');
+        const { body, metadata } = parseMarkdown(original, file);
         const stories = await associations(file, metadata, root);
         const content = await resolveAssets(body, file, root);
 
         return {
           file,
+          original,
           source: slash(path.relative(root, file)),
           title:
             metadata.title ??

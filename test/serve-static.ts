@@ -2,7 +2,7 @@ import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const root = path.resolve('storybook-static');
+const root = path.resolve(process.argv[2] ?? 'storybook-static');
 const types: Record<string, string> = {
   '.html': 'text/html',
   '.js': 'text/javascript',
@@ -33,4 +33,4 @@ http
       response.writeHead(404).end();
     }
   })
-  .listen(16007, '127.0.0.1');
+  .listen(Number(process.argv[3] ?? 16007), '127.0.0.1');
