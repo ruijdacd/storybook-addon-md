@@ -1,20 +1,63 @@
-# storybook-addon-md
+# Storybook Markdown
 
-Ordinary Markdown documentation inside Storybook. Discover files once, then write `.md` files without JSX, imports, or maintained MDX wrappers.
+A Storybook addon for **ordinary Markdown documentation**. Write `.md` files beside your components or in a docs folder, and browse them inside Storybook.
 
-## Supported setup
+- **Automatic discovery.** Configure file patterns once. Additions, edits, and deletions update during development.
+- **Component and standalone docs.** Attach guidance to existing stories, share it across components, or publish a page on its own.
+- **Native Docs.** Keep Storybook’s examples, generated props, and documentation styling.
+- **Your theme.** Customize content through CSS variables, a stylesheet, or your own layout and Markdown renderer.
+- **Static builds.** Relative images and downloads are bundled with your documentation.
 
-Tested with **Storybook 10.6.0**, **@storybook/react-vite 10.6.0**, **@storybook/addon-docs 10.6.0**, **Vite 7.3.6**, React 19.2.4 and Node 24.21.0. Requires Node 22.13+; other Storybook versions, renderers and builders are not supported yet.
+Write `Button.metadata.md` beside `Button.stories.tsx`:
+
+```md
+---
+status: Stable
+tags: [Actions]
+---
+
+## Overview
+
+Use buttons to trigger actions.
+
+## When to use
+
+- Submit a form.
+- Confirm a choice.
+```
+
+The component gets a **Markdown** Docs entry with your guidance, status and tag chips, examples, and props. Authors manage Markdown files; the addon manages disposable MDX wrappers.
+
+## Table of Contents
+
+- [Install](#install)
+- [Guide](#guide)
+- [Configuration](#configuration)
+- [Styling](#styling)
+- [Example](#example)
+- [Development](#development)
+- [Limitations](#limitations)
 
 ## Install
 
-This repository is an installable ESM package, written in TypeScript and published as compiled JavaScript with generated declarations. `npm pack` builds it automatically; consumers do not need a TypeScript build step. To try it before publication, run `npm pack` here and install the resulting `.tgz` in your project:
+The tested setup is **Storybook 10.6.0**, **@storybook/react-vite 10.6.0**, **@storybook/addon-docs 10.6.0**, **Vite 7.3.6**, and **React 19.2.4**. Node 22.13+ is required; local verification uses Node 24.21.0 and CI uses Node 24 on Linux.
+
+Before npm publication, build an installable tarball from this repository:
+
+```sh
+npm install
+npm pack
+```
+
+Install it in your Storybook project:
 
 ```sh
 npm install -D /path/to/storybook-addon-md-0.1.0.tgz @storybook/addon-docs@10.6.0
 ```
 
-Add to `.storybook/main.ts`, after addon-docs:
+The package ships compiled JavaScript and TypeScript declarations. Consumers do not need to compile the addon.
+
+Register it after addon-docs in `.storybook/main.ts`:
 
 ```ts
 import type { StorybookConfig } from '@storybook/react-vite';
@@ -38,24 +81,17 @@ const config: StorybookConfig = {
 export default config;
 ```
 
-The example uses `parameters.options.storySort` in its preview configuration to put Guides first and sort component titles alphabetically. Generated filenames are opaque identifiers, so configure Storybook sorting when sidebar order matters.
+Keep your normal story patterns: referenced story files must match them. Markdown files belong in the addon’s `patterns`, not Storybook’s `stories` list.
 
-Keep your normal story discovery configuration. Referenced story files must also match it. Do not add Markdown files to Storybook's `stories` list.
+Add `storybook-markdown-generated/` to `.gitignore`.
 
-| Option         | Meaning                                                                                                                                           |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `patterns`     | Required array of Markdown globs, relative to `root`. Supports negative globs.                                                                    |
-| `exclude`      | Optional array of globs relative to `root`. Exclusions take precedence over `patterns`.                                                           |
-| `stylesheet`   | Optional CSS file path relative to `root`, loaded for generated documentation pages.                                                              |
-| `generatedDir` | Visible folder name under the working directory. Default: `storybook-markdown-generated`. A disposable subdirectory is created per configuration. |
-| `root`         | Content root, relative to the Storybook config directory. Default: `..`.                                                                          |
-| `presentation` | Optional module path relative to `root`, exporting `Layout` and/or `MarkdownRenderer`.                                                            |
+## Guide
 
-Ignore `storybook-markdown-generated/` (or your configured `generatedDir`) in Git. The addon creates a disposable subdirectory per configuration under your working directory, registers its MDX glob before indexing, and removes obsolete files. This visible directory avoids Storybook 10.6 watcher issues with leading-dot paths and `node_modules`. Do not edit generated files. Keep the config directory inside `root`; restart Storybook after changing addon options.
+### Standalone Pages
 
-## Authoring
+A plain `docs/Introduction.md` appears at `Documentation/docs/Introduction`. No frontmatter, component, or story file is required.
 
-No frontmatter is required. A plain `docs/Introduction.md` becomes `Documentation/docs/Introduction` in the sidebar. Use `title` to set a standalone page's location:
+Use `title` to choose its sidebar location:
 
 ```md
 ---
@@ -67,30 +103,21 @@ title: Guides/Introduction
 Write ordinary Markdown here.
 ```
 
-Attach documentation explicitly:
+### Component Documentation
 
-```md
----
-component: Button
-category: Actions
-status: Stable
-tags: [Actions, Stable]
-stories: ./Button.stories.tsx
----
+Name a document `Button.metadata.md` beside `Button.stories.tsx` to associate it automatically. The convention also checks `.stories.ts`, `.stories.jsx`, and `.stories.js`. Missing or ambiguous siblings produce an error.
 
-## Overview
+For a different location or filename, set `stories` relative to the Markdown file:
 
-Use buttons to trigger actions.
-
-## When to use
-
-- Submit a form.
-- Confirm a choice.
+```yaml
+stories: ../components/Button.stories.tsx
 ```
 
-Or name the document **`Button.metadata.md`** beside `Button.stories.tsx`. The convention also checks `.stories.ts`, `.stories.jsx` and `.stories.js`. Missing or ambiguous siblings are errors. An explicit `stories` field takes precedence.
+An explicit `stories` field takes precedence over the filename convention. Existing stories and Autodocs pages remain available. Each component’s **Markdown** entry combines its attached documents in source-path order, followed by its primary example, controls/props, and remaining examples.
 
-Share a document by specifying an array:
+### Shared Documentation
+
+Use an array to attach one document to several story files:
 
 ```yaml
 stories:
@@ -98,23 +125,104 @@ stories:
   - ../components/Toggle.stories.tsx
 ```
 
-Paths resolve from the Markdown file. Each referenced component gets a **Markdown** Docs entry containing all its attached documents (sorted by source path), its primary example, generated controls/props, and remaining examples. Existing stories and Autodocs pages continue to work. The name `Markdown` is reserved for this addon's attached page; avoid giving a hand-written MDX page that name under the same component.
+Each referenced component displays the shared content alongside its own documentation and examples.
 
-Frontmatter must be a YAML mapping with lowercase top-level keys. `title` is a non-empty string for standalone pages. `stories` is a relative story-file path or a non-empty array. `tags` is an optional array of non-empty strings, rendered as chips below the title. Shared pages combine tags in document order and remove duplicates. Tags are content labels, not Storybook indexing tags. `status` is an optional non-empty string, displayed after the tags as a chip with its original value in `data-status`. Shared pages deduplicate statuses in document order. Statuses and tags remain separate, even when their labels match. Additional fields are preserved as metadata, with no built-in meaning or display. `title` does not relocate attached documentation. Duplicate standalone sidebar titles, invalid YAML and missing story references produce errors with source paths.
+### Frontmatter
 
-Markdown supports tables, lists, fenced code and reference links. Braces and JSX-like text are never evaluated. Raw HTML is displayed as text by the default renderer; use Markdown image/link syntax for asset handling.
+Frontmatter is optional YAML with lowercase top-level keys.
 
-## Links and assets
+| Field        | Value                                     | Behavior                                                                              |
+| ------------ | ----------------------------------------- | ------------------------------------------------------------------------------------- |
+| `title`      | Non-empty string                          | Sidebar location for a standalone page. Does not relocate attached docs.              |
+| `stories`    | Relative path or non-empty array of paths | Associates the document with story files.                                             |
+| `tags`       | Array of non-empty strings                | Renders chips below the title. These are content labels, not Storybook indexing tags. |
+| `status`     | Non-empty string                          | Renders a chip after the tags, preserving the value in `data-status`.                 |
+| Other fields | YAML values                               | Preserved as metadata for custom layouts and renderers.                               |
 
-Relative Markdown images and links resolve from the source `.md` file, including reference-style links, URL-encoded filenames and fragments. Local files are validated and imported through Vite, so static builds contain hashed asset files. Missing files fail startup/builds; development errors appear in the terminal and Vite overlay or Storybook error view and recover when corrected.
+Shared pages deduplicate tags and statuses separately in document order. A tag and status with the same label remain separate chips. Fields such as `component` and `category` have no built-in meaning.
 
-**Links to other `.md` files open the original source file**, including its frontmatter, rather than navigating to that file's Storybook page. Such source downloads are not recursively bundled as websites. For sidebar navigation, use an explicit Storybook URL such as `/?path=/docs/guides-introduction--docs` (adjust the deployment prefix if hosted under a subpath).
+Invalid frontmatter, duplicate standalone sidebar titles, and missing references produce errors with source paths. Development errors appear in the terminal and Vite overlay or Storybook error view, then recover when corrected.
 
-External URLs, fragment-only links, query-only links and root-relative URLs are left unchanged. Root-relative assets must be supplied through Storybook's `staticDirs`. Source files, story references, presentation modules and local assets must stay inside `root`; linked files are included in the published build, so choose discovery patterns and links accordingly.
+### Links and Assets
 
-## Customization and themes
+Use Markdown links and images, including reference-style syntax:
 
-The addon uses one shared stylesheet for chips and CSS variable overrides, alongside Storybook's `Markdown`, `Title`, `Primary`, `Controls` and `Stories` blocks inside the existing Docs container. Existing `parameters.docs.container` and `parameters.docs.theme` continue to apply. Choose light or dark using Storybook's standard themes in `.storybook/preview.ts`:
+```md
+![Button states](./assets/button-states.svg)
+
+[Download the checklist](./checklist.pdf)
+```
+
+Local paths resolve from the source `.md` file. URL-encoded filenames and fragments are supported. Files are validated and bundled as hashed assets in static builds. Filenames containing URL-reserved characters use safe disposable copies in the generated folder.
+
+**Links to `.md` files open their original source**, including frontmatter. They do not navigate to the rendered Storybook page or recursively bundle the linked document’s assets. For page navigation, use a Storybook URL such as `/?path=/docs/guides-introduction--docs`, adjusted for your deployment prefix.
+
+External, fragment-only, query-only, and root-relative URLs are unchanged. Supply root-relative assets through Storybook’s `staticDirs`. Source files and local references must stay inside `root`; referenced files become part of the static build.
+
+## Configuration
+
+| Option         | Default                        | Description                                                              |
+| -------------- | ------------------------------ | ------------------------------------------------------------------------ |
+| `patterns`     | Required                       | Array of Markdown globs relative to `root`. Supports negative globs.     |
+| `exclude`      | `[]`                           | Excluded globs relative to `root`. Exclusions take precedence.           |
+| `root`         | `..`                           | Content root relative to the Storybook config directory.                 |
+| `generatedDir` | `storybook-markdown-generated` | Visible folder name under the working directory.                         |
+| `stylesheet`   | None                           | CSS file relative to `root`, loaded for documentation pages.             |
+| `presentation` | None                           | Module relative to `root`, exporting `Layout` and/or `MarkdownRenderer`. |
+
+Keep the Storybook config directory inside `root`. Restart Storybook after changing addon options.
+
+### Generated Files
+
+The addon creates a disposable subdirectory per configuration, registers its MDX glob before indexing, and removes obsolete files. Ignore your configured `generatedDir` in Git and leave its contents to the addon.
+
+The folder must be a visible name containing letters, digits, hyphens, or underscores. Leading-dot paths and `node_modules` interfere with Storybook 10.6’s watcher; nested paths and `storybook-static` are also rejected.
+
+### Sidebar Order
+
+Generated filenames are opaque identifiers. Set Storybook’s `parameters.options.storySort` when sidebar order matters. The [example preview] puts Guides first and sorts component titles alphabetically.
+
+## Styling
+
+The default presentation uses native Storybook Docs blocks and one shared stylesheet. Existing `parameters.docs.container` and `parameters.docs.theme` still apply.
+
+### CSS Variables
+
+Set `stylesheet: '.storybook/markdown.css'` in the addon options, then define your overrides:
+
+```css
+.storybook-addon-md-page {
+  --sbmd-font-size: 16px;
+  --sbmd-line-height: 1.8;
+  --sbmd-heading-color: currentColor;
+  --sbmd-tag-radius: 6px;
+  --sbmd-tag-border: 1px solid currentColor;
+}
+```
+
+Variables cover typography, spacing, links, code, tables, images, and chips. They inherit from your theme container, and default text and link colors follow the active Docs theme. See the [CSS variable reference](STYLING.md) for the complete list.
+
+Use ordinary CSS for other properties. `.storybook-addon-md` wraps Markdown content, including custom renderer output; titles, props, and examples sit outside it. Other stable selectors are `.storybook-addon-md-page`, `.storybook-addon-md-title`, `.storybook-addon-md-tags`, and `.storybook-addon-md-tag`.
+
+The stylesheet is global to the preview, so scope selectors and account for Storybook’s specificity. For example, use `.sbdocs-content .storybook-addon-md h2` when overriding its heading rules. Vite handles CSS edits, imports, and relative `url()` assets.
+
+### Status Chips
+
+Status chips share the tag variables. Use `data-status` to map values to your theme:
+
+```css
+.storybook-addon-md-tag[data-status='stable' i] {
+  --sbmd-tag-color: light-dark(#1a7f37, #3fb950);
+  --sbmd-tag-background: light-dark(#dafbe1, #12261e);
+  --sbmd-tag-border: 1px solid currentColor;
+}
+```
+
+The `i` flag matches both `Stable` and `stable`. The addon accepts any status; your stylesheet decides its colors. Set `color-scheme: light dark` on the theme container when using `light-dark()`.
+
+### Light and Dark Themes
+
+Use Storybook’s standard Docs theme configuration for a fixed theme:
 
 ```ts
 import { themes } from 'storybook/theming';
@@ -124,70 +232,11 @@ export default {
 };
 ```
 
-To override Markdown styles, set `stylesheet: '.storybook/markdown.css'` in the addon options:
+For live system-preference switching, follow the example’s [Docs container] and [manager configuration]. They subscribe to preference changes so Storybook’s interface and documentation update together without reloading.
 
-```css
-.storybook-addon-md h2 {
-  border-bottom-style: dashed;
-}
+### Custom Layouts and Renderers
 
-.storybook-addon-md p {
-  line-height: 1.8;
-}
-```
-
-Common styles can be changed with CSS variables in that same stylesheet:
-
-```css
-.storybook-addon-md-page {
-  --sbmd-font-size: 16px;
-  --sbmd-line-height: 1.8;
-  --sbmd-heading-color: currentColor;
-  --sbmd-tag-radius: 6px;
-  --sbmd-tag-background: transparent;
-  --sbmd-tag-border: 1px solid currentColor;
-}
-```
-
-| Variables (all prefixed `--sbmd-`)                        | Affects                                    |
-| --------------------------------------------------------- | ------------------------------------------ |
-| `font-family`, `font-size`, `line-height`, `color`        | Markdown text                              |
-| `background`, `max-width`                                 | Documentation page wrapper                 |
-| `heading-color`, `heading-font-family`                    | Markdown headings and page title           |
-| `link-color`, `code-radius`, `image-radius`               | Links, code blocks and images              |
-| `tag-color`, `tag-background`, `tag-border`, `tag-radius` | Chip appearance                            |
-| `tag-padding`, `tag-font-size`, `tag-font-weight`         | Chip typography and spacing                |
-| `tag-gap`, `tag-margin`                                   | Space between chips and below the tag list |
-
-Variables inherit, so they can also be set on your theme container. Text and link colors default to the active Storybook Docs theme. Use theme-specific variable values when choosing custom colors. Variables cover most content styling, including heading sizes, spacing, link states, lists, quotes, code, tables, images, separators, and chips. See the [complete CSS variable reference](STYLING.md). Ordinary CSS can override any other property. Stable selectors are `.storybook-addon-md-page`, `.storybook-addon-md-title`, `.storybook-addon-md-tags`, `.storybook-addon-md-tag`, and `.storybook-addon-md`. Custom layouts can reuse `DefaultLayout` to retain the title and chips, or render metadata themselves. Custom renderers control their own element structure.
-
-Each Markdown document is wrapped in `.storybook-addon-md`, including custom renderer output. Page titles, generated props and story examples sit outside this wrapper. Scope your selectors to it: the stylesheet is ordinary global CSS in the preview, not automatically isolated. CSS specificity still applies; `.sbdocs-content .storybook-addon-md h2` can override a more specific Storybook rule. Use theme-aware colors such as `currentColor` or your own theme variables for light/dark support.
-
-The CSS file must be inside `root`. Missing files produce a source-specific error. Vite handles CSS edits, `@import` and relative `url()` assets, and bundles the stylesheet in static builds. This option is independent of `presentation`; no custom renderer or layout is required.
-
-Status chips use the same `--sbmd-tag-*` variables as tags. Select a status by its data attribute to customize its appearance:
-
-```css
-.storybook-addon-md-tag[data-status='stable' i] {
-  --sbmd-tag-color: var(--team-success-text, #1a7f37);
-  --sbmd-tag-background: var(--team-success-background, #dafbe1);
-  --sbmd-tag-border: 1px solid currentColor;
-}
-```
-
-The `i` flag matches `Stable` and `stable` without changing the authored value. The addon accepts any status and leaves color mappings to your stylesheet. The example maps Stable to success colors in both themes.
-
-### Complete styling example
-
-The example theme is based on [GitHub’s Primer design system](https://primer.style/product/) and its [semantic color guidance](https://primer.style/product/getting-started/foundations/color-usage/). It uses neutral surfaces, blue links, system typography, subtle borders, and outlined labels in light and dark mode. This is a local adaptation, with no Primer runtime dependency.
-
-Open **Guides → Introduction** or the component Markdown pages to see the shared theme.
-
-Copy [`example/.storybook/markdown.css`](https://github.com/ruijdacd/storybook-addon-md/blob/main/example/.storybook/markdown.css) as a starting point. Its `--sbmd-*` variables reference Tailwind theme variables defined in [`tailwind.css`](https://github.com/ruijdacd/storybook-addon-md/blob/main/example/.storybook/tailwind.css), including colors, typography, spacing, and radii. The theme uses `light-dark()` with `color-scheme: light dark`. The example’s manager and Docs container also subscribe to system theme changes, so Storybook’s sidebar, controls, and Docs surfaces update without reloading.
-
-The standalone content is in [`example/docs/Introduction.md`](https://github.com/ruijdacd/storybook-addon-md/blob/main/example/docs/Introduction.md). Styles remain in one shared stylesheet.
-
-To reuse a layout or renderer, configure `presentation: '.storybook/markdown-presentation.tsx'` and export either or both components:
+Set `presentation: '.storybook/markdown-presentation.tsx'` and export either or both components:
 
 ```tsx
 import { DefaultLayout, DefaultMarkdownRenderer } from 'storybook-addon-md/runtime';
@@ -202,45 +251,69 @@ export function MarkdownRenderer(document: MarkdownDocument) {
 }
 ```
 
-`MarkdownRenderer` receives `{ markdown, metadata, source }`: the processed Markdown string with resolved asset URLs, all frontmatter fields, and the root-relative source path. Replace it with your existing Markdown renderer or wrap it to display selected metadata.
+`MarkdownRenderer` receives `{ markdown, metadata, source }`: processed Markdown with resolved asset URLs, preserved frontmatter, and the source path relative to `root`.
 
-`Layout` receives `{ documents, title, attached, children, examples }`. `children` contains rendered documentation; `examples` contains native example and props blocks, or `null` for standalone pages. Render both to retain documentation and examples. `title` is the sidebar title for standalone pages and an empty string for attached pages; `DefaultLayout` uses Storybook's `Title` block for attached pages. You own any custom layout styles, without changing generated pages.
+`Layout` receives `{ documents, title, attached, children, examples }`. Render `children` and `examples` to keep documentation and native example/props blocks. `examples` is `null` for standalone pages. `title` contains the standalone sidebar title and is empty for attached pages; `DefaultLayout` uses Storybook’s `Title` block for those.
 
-## Development and verification
+Both customization files must stay inside `root`. Missing files produce source-specific errors. Styling and presentation are independent options.
+
+## Example
+
+Run the included Storybook:
 
 ```sh
 npm install
-npm run build
 npm run storybook
-npm test
-npm run test:watch
-npm run check
-npm run lint
-npm run format:check
-npm run build-storybook
-npx playwright install chromium
-npm run test:browser
-npm run test:e2e
-npm run test:package
-npm pack
 ```
 
-The example uses Tailwind CSS v4 through `@tailwindcss/vite`, `class-variance-authority` for variants, and `clsx` for composing class names. These are development dependencies used only by the example. Tailwind’s theme and utility layers are imported without Preflight to preserve Storybook Docs defaults. Static theme variables keep the tokens referenced by `markdown.css` available in production builds.
+Open **Guides → Introduction**, **Components → Button**, or **Components → Toggle** for standalone, attached, and shared documentation.
 
-The example components use `light-dark()` color pairs with `color-scheme: light dark` on `:root`, so standalone stories follow the system preference without reloading.
+The theme takes its direction from [GitHub Primer]. [Markdown styles] reference [Tailwind theme variables] for shared colors, typography, spacing, and radii. The example uses Tailwind v4, `clsx`, and `class-variance-authority`; these are development dependencies, not addon requirements. Tailwind Preflight is omitted to preserve native Docs styles.
 
-The example includes standalone pages, sibling association, shared documentation, relative Markdown links, and custom styling. The package smoke test creates its own image fixture to verify asset bundling. Its Docs theme follows changes to the browser's system color preference without reloading.
+Components use `light-dark()` and `color-scheme: light dark` on `:root`. The manager and Docs container also follow system-preference changes live.
 
-All tests, helpers, and runner configurations are written in TypeScript and included in `npm run check`. Standalone test helpers use Node’s built-in type stripping. Vitest runs unit tests directly against the TypeScript source, covering discovery, frontmatter, associations, asset resolution and watcher recovery. `npm test` runs once; `npm run test:watch` reruns affected tests as files change. Vitest Browser Mode with the Playwright provider runs rendering, metadata, CSS variable, and theme tests using Chromium (`npm run test:browser`, or `npm run test:browser:watch` for watch mode). The full Storybook end-to-end suite (`npm run test:e2e`) and isolated package smoke check remain separate. The end-to-end suite starts development and static servers on ports 16006/16007, verifies rendered docs, working examples, generated props, assets, customization, light/dark themes, and live sidebar additions/edits/deletions. Screenshots and failure traces go to `test-results/`. `test:package` installs a tarball in an isolated consumer, checks successful/failing static builds, and verifies the first Markdown file added to an initially empty discovery directory. It uses port 16008 and Chromium.
+## Development
 
-The development watcher observes `root` and rescans when matching Markdown or its referenced stories, assets, stylesheet, or presentation module changes and lets Storybook/Vite refresh the preview; interactive story state may reset. Keep `root` focused on your project. Large monorepos, simultaneous Storybooks sharing one config directory, symlinked content directories, raw-HTML assets and MDX authoring are outside this initial scope.
+Install Chromium for the browser suites:
 
-Oxlint checks code with `npm run lint`; `npm run lint:fix` applies available fixes. Oxfmt formats source, examples, tests, and documentation with `npm run format`; `npm run format:check` checks without writing. Both exclude generated files, build output, and test reports.
+```sh
+npx playwright install chromium
+```
 
-## Integration
+| Command                   | Purpose                                                       |
+| ------------------------- | ------------------------------------------------------------- |
+| `npm run build`           | Compile the addon and its declarations.                       |
+| `npm run check`           | Build the addon, then type-check source, examples, and tests. |
+| `npm run lint`            | Run Oxlint. Use `lint:fix` for automatic fixes.               |
+| `npm run format:check`    | Check Oxfmt formatting. Use `format` to write changes.        |
+| `npm test`                | Run Vitest unit tests.                                        |
+| `npm run test:browser`    | Run Vitest Browser Mode with Playwright/Chromium.             |
+| `npm run test:e2e`        | Verify development and static Storybooks in Chromium.         |
+| `npm run test:package`    | Install and verify a packed addon in an isolated consumer.    |
+| `npm run build-storybook` | Build the example as a static site.                           |
+| `npm pack`                | Build and package the addon.                                  |
 
-`src/content.ts` handles content and validation; `src/generator.ts` writes disposable modules; `src/preset.ts` connects discovery and watching; `src/runtime.tsx` renders Docs blocks. The preset uses Storybook's existing MDX compilation and indexing, with no custom indexer.
+Use `test:watch` or `test:browser:watch` while developing. End-to-end tests use ports 16006/16007, and the package smoke check uses 16008. Browser screenshots and failure traces go to `test-results/`.
 
-Integration references: [preset APIs](https://storybook.js.org/docs/addons/writing-presets), [Meta association](https://storybook.js.org/docs/api/doc-blocks/doc-block-meta), [Markdown block](https://storybook.js.org/docs/api/doc-blocks/doc-block-markdown), and [Vite static assets](https://vite.dev/guide/assets).
+[CI] runs the checks on Node 24 and Linux, including a dependency audit. Tests cover discovery, associations, watcher recovery, assets, customization, keyboard interaction, and live theme switching. The package smoke check supplies its own image fixture.
 
-CI runs the supported configuration on Node 24 and Linux, including Chromium browser tests, static builds, and the packed-consumer smoke check. Asset filenames containing URL-reserved characters are copied to safe disposable filenames in the generated folder before Vite bundles them.
+Content parsing lives in `src/content.ts`, disposable generation in `src/generator.ts`, Storybook integration in `src/preset.ts`, and presentation in `src/runtime.tsx`. The addon uses Storybook’s MDX compilation and indexing; it does not install a custom indexer.
+
+Report reproducible bugs in the [issue tracker].
+
+## Limitations
+
+- Only the Storybook, React, and Vite setup listed under [Install](#install) has been tested. Other renderers and builders are unsupported.
+- Markdown supports tables, lists, fenced code, and reference links. Braces and JSX-like text are content, never evaluated. The default renderer displays raw HTML as text; use Markdown syntax for links and images.
+- The **Markdown** page name is reserved under attached components. Avoid giving a hand-written MDX page the same name there.
+- The watcher observes `root` and rescans matching Markdown when documentation or its dependencies change. Interactive story state may reset. Keep `root` focused on your project.
+- Large monorepos, simultaneous Storybooks sharing one config directory, symlinked content directories, and MDX authoring are outside the initial scope.
+
+[example preview]: https://github.com/ruijdacd/storybook-addon-md/blob/main/example/.storybook/preview.ts
+[Docs container]: https://github.com/ruijdacd/storybook-addon-md/blob/main/example/.storybook/SystemDocsContainer.tsx
+[manager configuration]: https://github.com/ruijdacd/storybook-addon-md/blob/main/example/.storybook/manager.ts
+[GitHub Primer]: https://primer.style/product/
+[Markdown styles]: https://github.com/ruijdacd/storybook-addon-md/blob/main/example/.storybook/markdown.css
+[Tailwind theme variables]: https://github.com/ruijdacd/storybook-addon-md/blob/main/example/.storybook/tailwind.css
+[CI]: https://github.com/ruijdacd/storybook-addon-md/actions/workflows/ci.yml
+[issue tracker]: https://github.com/ruijdacd/storybook-addon-md/issues
