@@ -1,6 +1,6 @@
 {
   "name": "storybook-addon-md",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Discover ordinary Markdown and render it in Storybook Docs.",
   "keywords": [
     "docs",
