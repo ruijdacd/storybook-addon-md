@@ -1,5 +1,5 @@
 # Changesets
 
-Run `nub run changeset` for user-facing changes, choose a version bump, and write a short release note. Include the generated Markdown file in your pull request. Tooling-only changes do not need a changeset.
+Run `nub run changeset` for user-facing changes and include the generated release note in your PR. Tooling-only changes do not need one.
 
-See [Releasing](../README.md#releasing) for the release workflow and npm setup.
+See [Releases](../CONTRIBUTING.md#releases) for the release workflow.

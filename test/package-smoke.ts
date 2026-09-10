@@ -109,7 +109,7 @@ try {
   await writeFile(
     mainFile,
     (await readFile(mainFile, 'utf8')).replace(
-      "['docs/**/*.md', 'components/**/*.md']",
+      "['docs/**/*.md', 'components/**/*.md', '!docs/drafts/**']",
       "['empty-docs/**/*.md']",
     ),
   );

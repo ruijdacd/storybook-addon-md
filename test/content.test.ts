@@ -238,7 +238,7 @@ test('repeated Storybook stories hooks keep the initial glob without reparsing i
   assert.deepEqual(await stories([], options), initial);
 });
 
-test('explicit exclusions take precedence over discovery patterns', async (t) => {
+test('negative globs take precedence over positive discovery patterns', async (t) => {
   const { config, put } = await fixture(t);
 
   await put('docs/public.md', '# Public');
@@ -246,8 +246,7 @@ test('explicit exclusions take precedence over discovery patterns', async (t) =>
 
   const docs = await discover({
     ...config,
-    patterns: ['docs/**/*.md'],
-    exclude: ['docs/drafts/**'],
+    patterns: ['!docs/drafts/**', 'docs/**/*.md', 'docs/drafts/**/*.md'],
   });
 
   assert.deepEqual(
@@ -255,8 +254,15 @@ test('explicit exclusions take precedence over discovery patterns', async (t) =>
     ['docs/public.md'],
   );
   await assert.rejects(
-    Reflect.apply(discover, undefined, [{ ...config, exclude: 'docs/drafts/**' }]),
-    /exclude must be an array/,
+    Reflect.apply(stories, undefined, [
+      [],
+      {
+        ...config,
+        configDir: path.join(config.root, '.storybook'),
+        exclude: ['docs/drafts/**'],
+      },
+    ]),
+    /exclude has been removed; use negative globs in patterns/,
   );
 });
 
@@ -439,4 +445,27 @@ test('reserved asset filenames build, serve, update, and clean up through safe c
     (await readdir(config.output)).filter((name) => name.startsWith('asset-')).length,
     0,
   );
+});
+
+test('discovery keeps explicit files, braces, extglobs, and negative patterns', async (t) => {
+  const { config, put } = await fixture(t);
+
+  await put('docs/guide.md', '# Guide');
+  await put('docs/other.md', '# Other');
+  await put('docs/.hidden.md', '# Hidden');
+
+  for (const patterns of [
+    ['./docs/{guide,other}.md', '!./docs/other.md'],
+    ['docs/!(other).md', '!docs/.*'],
+    ['docs/*.md', '!docs/other.md'],
+    ['docs/guide.md', 'docs/guide.md'],
+  ]) {
+    const docs = await discover({ ...config, patterns });
+    assert.deepEqual(
+      docs.map((document) => document.source),
+      ['docs/guide.md'],
+    );
+  }
+
+  assert.deepEqual(await discover({ ...config, patterns: ['docs'] }), []);
 });
