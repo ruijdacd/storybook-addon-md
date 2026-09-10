@@ -2,7 +2,7 @@ import type { Link, Image, Definition } from 'mdast';
 import type { MarkdownOptions } from './index.js';
 import { readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
-import glob from 'fast-glob';
+import { glob } from 'tinyglobby';
 import { isMap, parseDocument } from 'yaml';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
@@ -218,7 +218,7 @@ export async function resolveAssets(body: string, file: string, root: string) {
   return { markdown: markdown.stringify(tree), assets };
 }
 
-export async function discover({ root, patterns, exclude = [], output }: ContentOptions) {
+export async function discover({ root, patterns, output }: ContentOptions) {
   if (
     !Array.isArray(patterns) ||
     !patterns.length ||
@@ -233,27 +233,13 @@ export async function discover({ root, patterns, exclude = [], output }: Content
     throw fail(root, 'patterns must be a non-empty array of globs relative to root');
   }
 
-  if (
-    !Array.isArray(exclude) ||
-    exclude.some(
-      (item) =>
-        typeof item !== 'string' ||
-        !item ||
-        path.isAbsolute(item) ||
-        item.split('/').includes('..'),
-    )
-  ) {
-    throw fail(root, 'exclude must be an array of globs relative to root');
-  }
-
   const files = await glob(patterns, {
     cwd: root,
     absolute: true,
     onlyFiles: true,
-    unique: true,
+    expandDirectories: false,
     followSymbolicLinks: false,
     ignore: [
-      ...exclude,
       '**/node_modules/**',
       '**/.git/**',
       '**/storybook-static/**',

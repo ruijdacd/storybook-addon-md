@@ -10,8 +10,7 @@ const config: StorybookConfig = {
     {
       name: 'storybook-addon-md',
       options: {
-        patterns: ['docs/**/*.md', 'components/**/*.md'],
-        exclude: ['docs/drafts/**'],
+        patterns: ['docs/**/*.md', 'components/**/*.md', '!docs/drafts/**'],
         generatedDir: 'example-markdown-generated',
         stylesheet: '.storybook/markdown.css',
       } satisfies MarkdownOptions,

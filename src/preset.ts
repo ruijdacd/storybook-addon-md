@@ -4,7 +4,6 @@ import type { ContentOptions, DiscoveredDocument } from './content.js';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { watch } from 'chokidar';
-import glob from 'fast-glob';
 import picomatch from 'picomatch';
 import { generate, writeChanged } from './generator.js';
 import { fail, slash } from './content.js';
@@ -22,6 +21,13 @@ function settings(options: PresetOptions) {
   const configDir = path.resolve(options.configDir);
   const root = path.resolve(configDir, options.root ?? '..');
   const generatedDir = options.generatedDir ?? 'storybook-markdown-generated';
+
+  if ('exclude' in options) {
+    throw fail(
+      configDir,
+      'exclude has been removed; use negative globs in patterns, such as !docs/private/**',
+    );
+  }
 
   if (
     !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(generatedDir) ||
@@ -41,7 +47,6 @@ function settings(options: PresetOptions) {
       createHash('sha256').update(configDir).digest('hex').slice(0, 12),
     ),
     patterns: options.patterns,
-    exclude: options.exclude,
     stylesheet: options.stylesheet ? path.resolve(root, options.stylesheet) : undefined,
     presentation: options.presentation ? path.resolve(root, options.presentation) : undefined,
   };
@@ -70,12 +75,19 @@ export function watchDocumentation(
     onUpdate = () => {},
   }: { onError?: (error: Error) => void; onUpdate?: () => void } = {},
 ) {
-  const matchers = glob
-    .generateTasks(config.patterns, { ignore: config.exclude ?? [] })
-    .map((task) => ({
-      include: picomatch(task.positive),
-      exclude: picomatch(task.negative),
-    }));
+  const isNegative = (pattern: string) => pattern.startsWith('!') && !pattern.startsWith('!(');
+  const positive = config.patterns.filter((pattern) => !isNegative(pattern));
+  const negative = config.patterns
+    .filter((pattern) => isNegative(pattern) && !isNegative(pattern.slice(1)))
+    .map((pattern) => pattern.slice(1));
+  const include = picomatch(
+    positive.map((pattern) => path.posix.normalize(pattern)),
+    { posix: true },
+  );
+  const exclude = picomatch(
+    negative.map((pattern) => path.posix.normalize(pattern)),
+    { posix: true },
+  );
   const dependencies = new Set<string>();
   const configuredDependencies = [config.presentation, config.stylesheet].filter(
     (file): file is string => Boolean(file),
@@ -136,9 +148,7 @@ export function watchDocumentation(
     if (event === 'addDir' || event === 'unlinkDir') return;
 
     const relative = slash(path.relative(config.root, file));
-    const markdown =
-      file.endsWith('.md') &&
-      matchers.some(({ include, exclude }) => include(relative) && !exclude(relative));
+    const markdown = file.endsWith('.md') && include(relative) && !exclude(relative);
 
     if (!markdown && !dependencies.has(file) && !configuredDependencies.includes(file)) return;
 

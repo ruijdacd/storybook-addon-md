@@ -103,3 +103,81 @@ Use your theme selector to override colors in dark mode. The [complete example](
 Status chips have `data-status` set to the original frontmatter value. Override `--sbmd-tag-*` on selectors such as `.storybook-addon-md-tag[data-status="stable" i]` to assign a status-specific appearance.
 
 These styles target Markdown content and its title/chips. Story canvases, props controls, and syntax highlighting still use Storybook’s theme. Custom renderers can use the shared styles when they produce matching HTML elements; custom layouts own any additional structure. Internal `--sbmd-native-*` variables carry Storybook theme values and are not customization hooks.
+
+## Customization
+
+The default presentation uses native Storybook Docs blocks and one shared stylesheet. Existing `parameters.docs.container` and `parameters.docs.theme` still apply.
+
+### CSS Variables
+
+Set `stylesheet: '.storybook/markdown.css'` in the addon options, then define your overrides:
+
+```css
+.storybook-addon-md-page {
+  --sbmd-font-size: 16px;
+  --sbmd-line-height: 1.8;
+  --sbmd-heading-color: currentColor;
+  --sbmd-tag-radius: 6px;
+  --sbmd-tag-border: 1px solid currentColor;
+}
+```
+
+Variables cover typography, spacing, links, code, tables, images, and chips. They inherit from your theme container, and default text and link colors follow the active Docs theme. See [Variables](#variables) for the complete list.
+
+Use ordinary CSS for other properties. `.storybook-addon-md` wraps Markdown content, including custom renderer output; titles, props, and examples sit outside it. Other stable selectors are `.storybook-addon-md-page`, `.storybook-addon-md-title`, `.storybook-addon-md-tags`, and `.storybook-addon-md-tag`.
+
+The stylesheet is global to the preview, so scope selectors and account for Storybook’s specificity. For example, use `.sbdocs-content .storybook-addon-md h2` when overriding its heading rules. Vite handles CSS edits, imports, and relative `url()` assets.
+
+### Status Chips
+
+Status chips share the tag variables. Use `data-status` to map values to your theme:
+
+```css
+.storybook-addon-md-tag[data-status='stable' i] {
+  --sbmd-tag-color: light-dark(#1a7f37, #3fb950);
+  --sbmd-tag-background: light-dark(#dafbe1, #12261e);
+  --sbmd-tag-border: 1px solid currentColor;
+}
+```
+
+The `i` flag matches both `Stable` and `stable`. The addon accepts any status; your stylesheet decides its colors. Set `color-scheme: light dark` on the theme container when using `light-dark()`.
+
+### Light and Dark Themes
+
+Use Storybook’s standard Docs theme configuration for a fixed theme:
+
+```ts
+import { themes } from 'storybook/theming';
+
+export default {
+  parameters: { docs: { theme: themes.dark } },
+};
+```
+
+For live system-preference switching, follow the example’s [Docs container] and [manager configuration]. They subscribe to preference changes so Storybook’s interface and documentation update together without reloading.
+
+### Custom Layouts and Renderers
+
+Set `presentation: '.storybook/markdown-presentation.tsx'` and export either or both components:
+
+```tsx
+import { DefaultLayout, DefaultMarkdownRenderer } from 'storybook-addon-md/runtime';
+import type { LayoutProps, MarkdownDocument } from 'storybook-addon-md/runtime';
+
+export function Layout(props: LayoutProps) {
+  return <DefaultLayout {...props} />;
+}
+
+export function MarkdownRenderer(document: MarkdownDocument) {
+  return <DefaultMarkdownRenderer {...document} />;
+}
+```
+
+`MarkdownRenderer` receives `{ markdown, metadata, source }`: processed Markdown with resolved asset URLs, preserved frontmatter, and the source path relative to the project folder.
+
+`Layout` receives `{ documents, title, attached, children, examples }`. Render `children` and `examples` to keep documentation and native example/props blocks. `examples` is `null` for standalone pages. `title` contains the standalone sidebar title and is empty for attached pages; `DefaultLayout` uses Storybook’s `Title` block for those.
+
+Customization paths are relative to the project folder and must stay inside it. Missing files produce source-specific errors. Styling and presentation are independent options.
+
+[Docs container]: https://github.com/ruijdacd/storybook-addon-md/blob/main/example/.storybook/SystemDocsContainer.tsx
+[manager configuration]: https://github.com/ruijdacd/storybook-addon-md/blob/main/example/.storybook/manager.ts
