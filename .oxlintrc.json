@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "react", "unicorn", "oxc"],
+  "categories": {
+    "correctness": "error"
+  },
+  "ignorePatterns": [
+    "dist/**",
+    "storybook-static/**",
+    "storybook-markdown-generated/**",
+    "example-markdown-generated/**",
+    "custom-doc-pages/**",
+    "test-results/**",
+    "playwright-report/**"
+  ]
+}

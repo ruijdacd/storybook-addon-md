@@ -1,0 +1,442 @@
+import { test, type TestContext } from 'vitest';
+import assert from 'node:assert/strict';
+import { mkdtemp, mkdir, writeFile, readFile, rm, readdir } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { discover, parseMarkdown, resolveAssets } from '../src/content.ts';
+import { generate } from '../src/generator.ts';
+import { stories, watchDocumentation } from '../src/preset.ts';
+
+async function fixture(t: TestContext) {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'sbmd-'));
+
+  t.onTestFinished(() => rm(root, { recursive: true, force: true }));
+
+  const config = {
+    root,
+    patterns: ['**/*.md', '!excluded/**'],
+    output: path.join(root, '.storybook/markdown-generated'),
+  };
+  const put = async (name: string, content = '') => {
+    const file = path.join(root, name);
+
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, content);
+
+    return file;
+  };
+
+  return { root, config, put };
+}
+
+async function until(check: () => boolean | Promise<boolean>) {
+  const start = Date.now();
+
+  while (Date.now() - start < 10000) {
+    if (await check()) return;
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+
+  assert.fail('Timed out waiting for file watcher');
+}
+
+test('optional lowercase frontmatter preserves custom fields and literal content', () => {
+  assert.deepEqual(parseMarkdown('# Hello {value} <Button />', 'doc.md'), {
+    body: '# Hello {value} <Button />',
+    metadata: {},
+  });
+
+  const doc = parseMarkdown(
+    '---\ncomponent: Button\nstatus: Stable\nextra:\n  nested: true\n---\nHello',
+    'doc.md',
+  );
+
+  assert.deepEqual(doc.metadata, {
+    component: 'Button',
+    status: 'Stable',
+    extra: { nested: true },
+  });
+  assert.equal(doc.body, 'Hello');
+  assert.equal(
+    parseMarkdown('\uFEFF---\r\ntitle: Hello\r\n---\r\nBody', 'doc.md').metadata.title,
+    'Hello',
+  );
+});
+
+test('invalid YAML and supported fields produce source-specific errors', () => {
+  for (const text of [
+    '---\ntitle: [\n---',
+    '---\ntitle: x',
+    '---\n- item\n---',
+    '---\nTitle: X\n---',
+    '---\ntitle: 3\n---',
+    '---\nstories: []\n---',
+    '---\nstories: [3]\n---',
+    '---\ntitle: x\ntitle: y\n---',
+    '---\nvalue: !custom foo\n---',
+    '---\nnull\n---',
+    '---\nvalue: .inf\n---',
+  ]) {
+    assert.throws(() => parseMarkdown(text, 'invalid.md'), /storybook-addon-md.*invalid.md/);
+  }
+});
+
+test('discovery, exclusions, fallback titles, sibling and shared associations', async (t) => {
+  const { config, put, root } = await fixture(t);
+
+  await put('guide.md', 'Standalone');
+  await put('excluded/no.md', 'Excluded');
+  await put('node_modules/no.md', 'Excluded');
+  await put('Button.stories.tsx');
+  await put('Toggle.stories.jsx');
+  await put('Button.metadata.md', 'Sibling');
+  await put('shared.md', '---\nstories: [./Button.stories.tsx, ./Toggle.stories.jsx]\n---\nShared');
+
+  const docs = await discover(config);
+
+  assert.equal(docs.length, 3);
+  assert.equal(docs.find((doc) => doc.source === 'guide.md')!.title, 'Documentation/guide');
+  assert.deepEqual(docs.find((doc) => doc.source === 'Button.metadata.md')!.stories, [
+    path.join(root, 'Button.stories.tsx'),
+  ]);
+  assert.equal(docs.find((doc) => doc.source === 'shared.md')!.stories.length, 2);
+
+  await generate(config);
+
+  const wrappers = (await readdir(config.output)).filter((name) => name.endsWith('.mdx'));
+
+  assert.equal(wrappers.length, 3);
+
+  const combined = await Promise.all(
+    wrappers.map((name) => readFile(path.join(config.output, name), 'utf8')),
+  );
+
+  assert.ok(
+    combined.some((text) => text.includes('document1') && text.includes('Button.stories.tsx')),
+  );
+});
+
+test('missing, ambiguous, and explicit story references', async (t) => {
+  const { config, put } = await fixture(t);
+
+  await put('Button.metadata.md', 'Sibling');
+
+  await assert.rejects(discover(config), /missing sibling story/);
+
+  await put('Button.stories.ts');
+  await put('Button.stories.tsx');
+
+  await assert.rejects(discover(config), /ambiguous sibling/);
+
+  await put('Button.metadata.md', '---\nstories: ./Button.stories.ts\n---\nExplicit wins');
+
+  assert.equal((await discover(config))[0].stories.length, 1);
+
+  await put('Button.metadata.md', '---\nstories: ./Missing.stories.ts\n---');
+
+  await assert.rejects(discover(config), /missing story reference/);
+});
+
+test('assets include inline links, reference images, encoded paths, downloads and Markdown sources', async (t) => {
+  const { root, put } = await fixture(t);
+  const file = await put('docs/guide.md');
+
+  await put('docs/image with space.svg', '<svg/>');
+  await put('docs/other.md', '# Other');
+
+  const doc = await resolveAssets(
+    '![Picture][pic]\n\n[pic]: ./image%20with%20space.svg#icon\n\n[Source](other.md)\n\n[Web](https://example.com) [Root](/static/a) [Anchor](#section)\n\n`![code](missing.svg)`',
+    file,
+    root,
+  );
+
+  assert.equal(doc.assets.length, 2);
+  assert.equal(doc.assets[0].suffix, '#icon');
+  assert.match(doc.markdown, /https:\/\/example.com/);
+  assert.match(doc.markdown, /missing.svg/);
+  await assert.rejects(
+    resolveAssets('![Missing](missing.png)', file, root),
+    /guide.md: missing local asset/,
+  );
+  await assert.rejects(resolveAssets('[Bad](bad%XX.png)', file, root), /invalid local URL/);
+});
+
+test('duplicate sidebar titles fail before writing output', async (t) => {
+  const { config, put } = await fixture(t);
+
+  await put('a.md', '---\ntitle: Guide/A\n---');
+  await put('b.md', '---\ntitle: Guide/A\n---');
+
+  await assert.rejects(generate(config), /duplicate or empty sidebar title/);
+});
+
+test('watcher handles new directories, edits, reassociation, deletions and error recovery', async (t) => {
+  const { config, put, root } = await fixture(t);
+
+  await generate(config);
+
+  const errors: string[] = [];
+  const watcher = watchDocumentation(config, { onError: (error) => errors.push(error.message) });
+
+  t.onTestFinished(() => watcher.close());
+  await watcher.ready;
+
+  const pages = async () => (await readdir(config.output)).filter((name) => name.endsWith('.mdx'));
+  const modules = async () =>
+    (
+      await Promise.all(
+        (await readdir(config.output))
+          .filter((name) => name.startsWith('content-'))
+          .map((name) => readFile(path.join(config.output, name), 'utf8')),
+      )
+    ).join('\n');
+
+  await put('new/deep/guide.md', '# First');
+  await until(async () => (await pages()).length === 1);
+  await put('new/deep/guide.md', '# Edited');
+  await until(async () => (await modules()).includes('Edited'));
+  await put('Button.stories.tsx', 'export default {};');
+  await put('new/deep/guide.md', '---\nstories: ../../Button.stories.tsx\n---\nAttached');
+  await until(async () => (await modules()).includes('Attached'));
+
+  assert.match(
+    await readFile(path.join(config.output, (await pages())[0]), 'utf8'),
+    /of=\{ComponentStories\}/,
+  );
+
+  await put('new/deep/guide.md', '![Missing](picture.svg)');
+  await until(() => errors.length > 0);
+
+  assert.match(errors.at(-1)!, /missing local asset/);
+  assert.match(await readFile(path.join(config.output, 'status.js'), 'utf8'), /throw new Error/);
+
+  await put('new/deep/picture.svg', '<svg/>');
+  await until(
+    async () => (await readFile(path.join(config.output, 'status.js'), 'utf8')) === 'export {};\n',
+  );
+  await rm(path.join(root, 'new'), { recursive: true });
+  await until(async () => (await pages()).length === 0);
+
+  assert.equal(await modules(), '');
+});
+
+test('repeated Storybook stories hooks keep the initial glob without reparsing invalid edits', async (t) => {
+  const { config, put, root } = await fixture(t);
+
+  await put('guide.md', '# Valid');
+
+  const options = { configDir: path.join(root, '.storybook'), patterns: config.patterns };
+  const initial = await stories([], options);
+  const generated = initial[0];
+
+  assert(typeof generated !== 'string', 'Expected generated story directory');
+
+  t.onTestFinished(() => rm(generated.directory, { recursive: true, force: true }));
+  await put('guide.md', '---\ntitle: [\n---');
+
+  assert.deepEqual(await stories([], options), initial);
+});
+
+test('explicit exclusions take precedence over discovery patterns', async (t) => {
+  const { config, put } = await fixture(t);
+
+  await put('docs/public.md', '# Public');
+  await put('docs/drafts/private.md', '---\ntitle: [\n---');
+
+  const docs = await discover({
+    ...config,
+    patterns: ['docs/**/*.md'],
+    exclude: ['docs/drafts/**'],
+  });
+
+  assert.deepEqual(
+    docs.map((document) => document.source),
+    ['docs/public.md'],
+  );
+  await assert.rejects(
+    Reflect.apply(discover, undefined, [{ ...config, exclude: 'docs/drafts/**' }]),
+    /exclude must be an array/,
+  );
+});
+
+test('stylesheet references are validated before generating pages', async (t) => {
+  const { config, put, root } = await fixture(t);
+
+  await put('guide.md', '# Guide');
+
+  const stylesheet = path.join(root, 'markdown.css');
+
+  await assert.rejects(generate({ ...config, stylesheet }), /missing stylesheet/);
+
+  await put('markdown.css', '.storybook-addon-md h2 { border-bottom-style: dashed; }');
+  await generate({ ...config, stylesheet });
+  await rm(stylesheet);
+
+  await assert.rejects(generate({ ...config, stylesheet }), /missing stylesheet/);
+});
+
+test('tags require a list of non-empty strings', () => {
+  assert.deepEqual(parseMarkdown('---\ntags: [Guide, Stable]\n---', 'tags.md').metadata.tags, [
+    'Guide',
+    'Stable',
+  ]);
+
+  for (const value of ['Stable', '[3]', '[""]', 'null']) {
+    assert.throws(
+      () => parseMarkdown(`---\ntags: ${value}\n---`, 'tags.md'),
+      /tags must be an array/,
+    );
+  }
+});
+
+test('generatedDir selects a visible folder and rejects watcher-incompatible paths', async (t) => {
+  const { root, put } = await fixture(t);
+
+  await put('guide.md', '# Guide');
+
+  const options = {
+    configDir: path.join(root, '.storybook'),
+    patterns: ['*.md'],
+    generatedDir: 'custom-doc-pages',
+  };
+  const result = await stories([], options);
+  const generated = result[0];
+
+  assert(typeof generated !== 'string', 'Expected generated story directory');
+
+  t.onTestFinished(() => rm(generated.directory, { recursive: true, force: true }));
+
+  assert.equal(path.dirname(generated.directory), path.join(process.cwd(), 'custom-doc-pages'));
+
+  for (const generatedDir of ['.hidden', '../outside', 'nested/folder', 'node_modules', '']) {
+    await assert.rejects(
+      stories([], {
+        ...options,
+        configDir: path.join(root, generatedDir || 'empty', '.storybook'),
+        generatedDir,
+      }),
+      /generatedDir must be/,
+    );
+  }
+});
+
+test('status accepts custom names and rejects empty or non-string values', () => {
+  assert.equal(
+    parseMarkdown('---\nstatus: In review\n---', 'status.md').metadata.status,
+    'In review',
+  );
+
+  for (const value of ['null', '3', '[]', '""', '" "']) {
+    assert.throws(
+      () => parseMarkdown(`---\nstatus: ${value}\n---`, 'status.md'),
+      /status must be a non-empty string/,
+    );
+  }
+});
+
+test('watcher skips unrelated and excluded changes but retains referenced dependencies', async (t) => {
+  const { config, put, root } = await fixture(t);
+  await put('guide.md', '![Picture](image.svg)');
+  await put('image.svg', '<svg/>');
+
+  let updates = 0;
+  const watcher = watchDocumentation(config, { onUpdate: () => updates++ });
+  t.onTestFinished(() => watcher.close());
+  await watcher.ready;
+  await new Promise((resolve) => setTimeout(resolve, 400));
+  const initialUpdates = updates;
+
+  await put('application.ts', 'export const value = 1;');
+  await put('excluded/draft.md', '---\ntitle: [\n---');
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  assert.equal(updates, initialUpdates);
+
+  await put('image.svg', '<svg><title>Updated</title></svg>');
+  await until(() => updates === initialUpdates + 1);
+  await rm(path.join(root, 'guide.md'));
+  await until(() => updates === initialUpdates + 2);
+  await put('image.svg', '<svg/>');
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  assert.equal(updates, initialUpdates + 2);
+});
+
+test('watcher recovers when a new metadata document gains its missing sibling', async (t) => {
+  const { config, put } = await fixture(t);
+  const errors: string[] = [];
+  let updates = 0;
+  const watcher = watchDocumentation(config, {
+    onUpdate: () => updates++,
+    onError: (error) => errors.push(error.message),
+  });
+  t.onTestFinished(() => watcher.close());
+  await watcher.ready;
+  await put('New.metadata.md', 'New component');
+  await until(() => errors.length > 0);
+  await put('New.stories.tsx', 'export default {};');
+  await until(() => updates === 2);
+  assert.equal(await readFile(path.join(config.output, 'status.js'), 'utf8'), 'export {};\n');
+});
+
+test('reserved asset filenames build, serve, update, and clean up through safe copies', async (t) => {
+  const { build, createServer } = await import('vite');
+  const { config, put, root } = await fixture(t);
+  const names = [
+    'image#dark.svg',
+    'image%dark.svg',
+    ...(process.platform === 'win32' ? [] : ['image?dark.svg']),
+  ];
+
+  await put(
+    'guide.md',
+    names.map((name) => `![Picture](./${encodeURIComponent(name)})`).join('\n\n'),
+  );
+  for (const name of names) await put(name, `<svg><title>${name}</title></svg>`);
+  await generate(config);
+
+  const content = (await readdir(config.output)).find((name) => name.startsWith('content-'))!;
+  const result = await build({
+    configFile: false,
+    root,
+    logLevel: 'silent',
+    build: { write: false, lib: { entry: path.join(config.output, content), formats: ['es'] } },
+  });
+  const outputs = Array.isArray(result) ? result : [result];
+  const emitted = outputs
+    .flatMap((result) => ('output' in result ? result.output : []))
+    .filter((file) => file.type === 'asset');
+  assert.equal(emitted.length, names.length);
+
+  const server = await createServer({
+    configFile: false,
+    root,
+    logLevel: 'silent',
+    server: { port: 0, host: '127.0.0.1' },
+  });
+  t.onTestFinished(() => server.close());
+  await server.listen();
+  const base = server.resolvedUrls!.local[0];
+  const copies = (await readdir(config.output)).filter((name) => name.startsWith('asset-'));
+
+  for (const copy of copies) {
+    const response = await fetch(
+      new URL(path.relative(root, path.join(config.output, copy)).split(path.sep).join('/'), base),
+    );
+    assert.equal(response.status, 200);
+    assert.match(await response.text(), /<svg><title>image/);
+  }
+
+  await put(names[0], '<svg><title>Changed</title></svg>');
+  await generate(config);
+  assert.ok(
+    (
+      await Promise.all(copies.map((name) => readFile(path.join(config.output, name), 'utf8')))
+    ).some((content) => content.includes('Changed')),
+  );
+  await put('guide.md', 'No assets');
+  await generate(config);
+  assert.equal(
+    (await readdir(config.output)).filter((name) => name.startsWith('asset-')).length,
+    0,
+  );
+});
