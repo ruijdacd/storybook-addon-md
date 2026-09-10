@@ -1,6 +1,6 @@
 import { mkdtemp, mkdir, readdir, cp, writeFile, readFile, rm } from 'node:fs/promises';
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
-import { promisify } from 'node:util';
+import { promisify, stripVTControlCharacters } from 'node:util';
 import path from 'node:path';
 import os from 'node:os';
 import assert from 'node:assert/strict';
@@ -90,8 +90,10 @@ try {
     (error) => {
       assert(error instanceof Error);
       assert.match(
-        ('stdout' in error ? String(error.stdout) : '') +
-          ('stderr' in error ? String(error.stderr) : ''),
+        stripVTControlCharacters(
+          ('stdout' in error ? String(error.stdout) : '') +
+            ('stderr' in error ? String(error.stderr) : ''),
+        ),
         /missing local[\s│]+asset/,
       );
 
