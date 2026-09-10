@@ -55,7 +55,8 @@
     "lint": "oxlint --deny-warnings",
     "lint:fix": "oxlint --fix --deny-warnings",
     "format": "oxfmt --write .",
-    "format:check": "oxfmt --check ."
+    "format:check": "oxfmt --check .",
+    "precheck": "npm run build"
   },
   "dependencies": {
     "chokidar": "^4.0.3",
