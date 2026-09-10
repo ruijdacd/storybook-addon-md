@@ -194,6 +194,10 @@ test('development: additions after startup appear in the sidebar, update, and di
 
   try {
     await page.goto('http://localhost:16006/?path=/docs/guides-introduction--docs');
+
+    const preview = page.frameLocator('#storybook-preview-iframe');
+
+    await expect(preview.getByRole('heading', { name: 'Introduction', exact: true })).toBeVisible();
     await mkdir(directory, { recursive: true });
     await writeFile(file, '---\ntitle: Guides/Added live\n---\n## Added after startup\n');
 
@@ -201,8 +205,6 @@ test('development: additions after startup appear in the sidebar, update, and di
     await expect(page.getByText('Added live', { exact: true })).toBeVisible();
 
     await page.getByText('Added live', { exact: true }).click();
-
-    const preview = page.frameLocator('#storybook-preview-iframe');
 
     await expect(preview.getByRole('heading', { name: 'Added after startup' })).toBeVisible();
 
