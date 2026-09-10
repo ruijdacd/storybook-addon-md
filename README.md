@@ -36,23 +36,26 @@ The component gets a **Markdown** Docs entry with your guidance, status and tag 
 - [Styling](#styling)
 - [Example](#example)
 - [Development](#development)
+- [Releasing](#releasing)
 - [Limitations](#limitations)
 
 ## Install
 
 The tested setup is **Storybook 10.6.0**, **@storybook/react-vite 10.6.0**, **@storybook/addon-docs 10.6.0**, **Vite 7.3.6**, and **React 19.2.4**. Node 22.13+ is required; local verification uses Node 24.21.0 and CI uses Node 24 on Linux.
 
-Before npm publication, build an installable tarball from this repository:
+This repository uses [Nub](https://nubjs.com/docs) 0.7.5. The checked-in `nub.lock` pins dependencies, and `.npmrc` selects the hoisted layout for Storybook and Vitest. CI installs with `nub install --frozen-lockfile`.
+
+To build an installable tarball from this repository:
 
 ```sh
-npm install
-npm pack
+nub install
+nub pack
 ```
 
 Install it in your Storybook project:
 
 ```sh
-npm install -D /path/to/storybook-addon-md-0.1.0.tgz @storybook/addon-docs@10.6.0
+nub add -D /path/to/storybook-addon-md-0.1.0.tgz @storybook/addon-docs@10.6.0
 ```
 
 The package ships compiled JavaScript and TypeScript declarations. Consumers do not need to compile the addon.
@@ -262,8 +265,8 @@ Both customization files must stay inside `root`. Missing files produce source-s
 Run the included Storybook:
 
 ```sh
-npm install
-npm run storybook
+nub install
+nub run storybook
 ```
 
 Open **Guides → Introduction**, **Components → Button**, or **Components → Toggle** for standalone, attached, and shared documentation.
@@ -277,21 +280,21 @@ Components use `light-dark()` and `color-scheme: light dark` on `:root`. The man
 Install Chromium for the browser suites:
 
 ```sh
-npx playwright install chromium
+nub exec playwright install chromium
 ```
 
 | Command                   | Purpose                                                       |
 | ------------------------- | ------------------------------------------------------------- |
-| `npm run build`           | Compile the addon and its declarations.                       |
-| `npm run check`           | Build the addon, then type-check source, examples, and tests. |
-| `npm run lint`            | Run Oxlint. Use `lint:fix` for automatic fixes.               |
-| `npm run format:check`    | Check Oxfmt formatting. Use `format` to write changes.        |
-| `npm test`                | Run Vitest unit tests.                                        |
-| `npm run test:browser`    | Run Vitest Browser Mode with Playwright/Chromium.             |
-| `npm run test:e2e`        | Verify development and static Storybooks in Chromium.         |
-| `npm run test:package`    | Install and verify a packed addon in an isolated consumer.    |
-| `npm run build-storybook` | Build the example as a static site.                           |
-| `npm pack`                | Build and package the addon.                                  |
+| `nub run build`           | Compile the addon and its declarations.                       |
+| `nub run check`           | Build the addon, then type-check source, examples, and tests. |
+| `nub run lint`            | Run Oxlint. Use `lint:fix` for automatic fixes.               |
+| `nub run format:check`    | Check Oxfmt formatting. Use `format` to write changes.        |
+| `nub run test`            | Run Vitest unit tests.                                        |
+| `nub run test:browser`    | Run Vitest Browser Mode with Playwright/Chromium.             |
+| `nub run test:e2e`        | Verify development and static Storybooks in Chromium.         |
+| `nub run test:package`    | Install and verify a packed addon in an isolated consumer.    |
+| `nub run build-storybook` | Build the example as a static site.                           |
+| `nub pack`                | Build and package the addon.                                  |
 
 Use `test:watch` or `test:browser:watch` while developing. End-to-end tests use ports 16006/16007, and the package smoke check uses 16008. Browser screenshots and failure traces go to `test-results/`.
 
@@ -300,6 +303,22 @@ Use `test:watch` or `test:browser:watch` while developing. End-to-end tests use 
 Content parsing lives in `src/content.ts`, disposable generation in `src/generator.ts`, Storybook integration in `src/preset.ts`, and presentation in `src/runtime.tsx`. The addon uses Storybook’s MDX compilation and indexing; it does not install a custom indexer.
 
 Report reproducible bugs in the [issue tracker].
+
+## Releasing
+
+Releases use [Changesets](https://changesets.dev/guide/automating). For a user-facing change, run `nub run changeset`, choose a patch/minor/major bump, and include the generated release note in your PR. Tooling-only changes do not need a release note.
+
+After CI passes for a push to `main`, `release.yml` opens or updates a release PR with the version and changelog. Merge that PR to publish after CI passes again. Nub manages dependencies and scripts; Changesets invokes npm for publishing.
+
+One-time setup:
+
+1. If the package does not exist on npm yet, publish the initial version from a clean checkout: `nub run build`, `npm login`, then `npm publish --access public`.
+2. In the npm package’s **Settings → Trusted publishing**, select GitHub Actions, owner `ruijdacd`, repository `storybook-addon-md`, workflow `release.yml`, and allow publishing. Leave the environment empty.
+3. In GitHub’s **Settings → Actions → General**, enable **Allow GitHub Actions to create and approve pull requests**.
+
+No `NPM_TOKEN` secret is needed. The workflow uses GitHub’s automatic token for release PRs and OIDC for [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/). It installs npm 11 with Node 24 to support OIDC.
+
+Release PRs created with the automatic GitHub token do not trigger PR workflows. If branch protection requires those checks, close and reopen the release PR yourself to trigger CI before merging. The release workflow always waits for CI on the merged commit.
 
 ## Limitations
 

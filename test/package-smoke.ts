@@ -12,7 +12,7 @@ const project = await mkdtemp(path.join(os.tmpdir(), 'storybook-md-consumer-'));
 let server: ChildProcess | undefined;
 let browser: Browser | undefined;
 let output = '';
-const run = (args: string[], cwd: string) => exec('npm', args, { cwd, maxBuffer: 5 * 1024 * 1024 });
+const run = (args: string[], cwd: string) => exec('nub', args, { cwd, maxBuffer: 5 * 1024 * 1024 });
 
 try {
   const { stdout } = await run(['pack', '--json', '--pack-destination', project], process.cwd());
@@ -28,8 +28,9 @@ try {
       name: 'markdown-addon-consumer',
       private: true,
       type: 'module',
+      packageManager: 'nub@0.7.5',
       devDependencies: {
-        'storybook-addon-md': `file:./${filename}`,
+        'storybook-addon-md': `file:${filename}`,
         '@storybook/addon-docs': '10.6.0',
         '@storybook/react-vite': '10.6.0',
         storybook: '10.6.0',
@@ -64,7 +65,8 @@ try {
   );
   await writeFile(path.join(project, 'docs/Asset-check.md'), '![Asset check](./assets/button.svg)');
 
-  await run(['install', '--no-audit', '--no-fund'], project);
+  await cp('.npmrc', path.join(project, '.npmrc'));
+  await run(['install', '--no-frozen-lockfile'], project);
   await run(['exec', '--', 'storybook', 'build', '--disable-telemetry'], project);
 
   const { entries } = JSON.parse(
