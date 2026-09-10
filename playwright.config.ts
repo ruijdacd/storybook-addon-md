@@ -5,11 +5,13 @@ export default defineConfig({
   testMatch: '**/*.spec.ts',
   workers: 1,
   timeout: 60000,
+  globalTimeout: 180000,
   expect: { timeout: 15000 },
   use: { browserName: 'chromium', trace: 'retain-on-failure' },
   webServer: [
     {
-      command: 'nub run storybook --ci --exact-port -p 16006',
+      command:
+        'nub run build && node node_modules/storybook/dist/bin/dispatcher.js dev -c example/.storybook --ci --no-open --disable-telemetry --exact-port -p 16006',
       url: 'http://localhost:16006/index.json',
       reuseExistingServer: !process.env.CI,
       timeout: 120000,
