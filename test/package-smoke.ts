@@ -1,0 +1,210 @@
+import { mkdtemp, mkdir, readdir, cp, writeFile, readFile, rm } from 'node:fs/promises';
+import { execFile, spawn, type ChildProcess } from 'node:child_process';
+import { promisify } from 'node:util';
+import path from 'node:path';
+import os from 'node:os';
+import assert from 'node:assert/strict';
+import { once } from 'node:events';
+import { chromium, expect, type Browser } from '@playwright/test';
+
+const exec = promisify(execFile);
+const project = await mkdtemp(path.join(os.tmpdir(), 'storybook-md-consumer-'));
+let server: ChildProcess | undefined;
+let browser: Browser | undefined;
+let output = '';
+const run = (args: string[], cwd: string) => exec('npm', args, { cwd, maxBuffer: 5 * 1024 * 1024 });
+
+try {
+  const { stdout } = await run(['pack', '--json', '--pack-destination', project], process.cwd());
+  const [{ filename }] = JSON.parse(stdout);
+
+  await cp('example', project, {
+    recursive: true,
+    filter: (source) => !source.includes('markdown-generated'),
+  });
+  await writeFile(
+    path.join(project, 'package.json'),
+    JSON.stringify({
+      name: 'markdown-addon-consumer',
+      private: true,
+      type: 'module',
+      devDependencies: {
+        'storybook-addon-md': `file:./${filename}`,
+        '@storybook/addon-docs': '10.6.0',
+        '@storybook/react-vite': '10.6.0',
+        storybook: '10.6.0',
+        react: '19.2.4',
+        'react-dom': '19.2.4',
+        vite: '7.3.6',
+        typescript: '5.9.3',
+        '@types/react': '^19.2.0',
+        tailwindcss: '^4',
+        '@tailwindcss/vite': '^4',
+        clsx: '^2.1.1',
+        'class-variance-authority': '^0.7.1',
+      },
+    }),
+  );
+  await writeFile(
+    path.join(project, 'tsconfig.json'),
+    JSON.stringify({
+      compilerOptions: {
+        jsx: 'react-jsx',
+        target: 'ES2022',
+        module: 'ESNext',
+        moduleResolution: 'Bundler',
+      },
+      include: ['components', '.storybook'],
+    }),
+  );
+  await mkdir(path.join(project, 'docs/assets'), { recursive: true });
+  await writeFile(
+    path.join(project, 'docs/assets/button.svg'),
+    '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="green"/></svg>',
+  );
+  await writeFile(path.join(project, 'docs/Asset-check.md'), '![Asset check](./assets/button.svg)');
+
+  await run(['install', '--no-audit', '--no-fund'], project);
+  await run(['exec', '--', 'storybook', 'build', '--disable-telemetry'], project);
+
+  const { entries } = JSON.parse(
+    await readFile(path.join(project, 'storybook-static/index.json'), 'utf8'),
+  );
+
+  for (const id of [
+    'guides-introduction--docs',
+    'components-button--markdown',
+    'components-toggle--markdown',
+  ]) {
+    assert.equal(entries[id]?.type, 'docs', id);
+  }
+
+  const builtAssets = await readdir(path.join(project, 'storybook-static/assets'));
+
+  assert(builtAssets.some((name) => /^button-.*\.svg$/.test(name)));
+
+  await rm(path.join(project, 'docs/assets/button.svg'));
+
+  await assert.rejects(
+    run(['exec', '--', 'storybook', 'build', '--disable-telemetry'], project),
+    (error) => {
+      assert(error instanceof Error);
+      assert.match(
+        ('stdout' in error ? String(error.stdout) : '') +
+          ('stderr' in error ? String(error.stderr) : ''),
+        /missing local[\s│]+asset/,
+      );
+
+      return true;
+    },
+  );
+
+  const mainFile = path.join(project, '.storybook/main.ts');
+
+  await writeFile(
+    mainFile,
+    (await readFile(mainFile, 'utf8')).replace(
+      "['docs/**/*.md', 'components/**/*.md']",
+      "['empty-docs/**/*.md']",
+    ),
+  );
+  await rm(path.join(project, 'example-markdown-generated'), { recursive: true });
+
+  const storybookPackage = JSON.parse(
+    await readFile(path.join(project, 'node_modules/storybook/package.json'), 'utf8'),
+  );
+
+  server = spawn(
+    process.execPath,
+    [
+      path.join(project, 'node_modules/storybook', storybookPackage.bin),
+      'dev',
+      '--ci',
+      '--no-open',
+      '--disable-telemetry',
+      '--exact-port',
+      '-p',
+      '16008',
+    ],
+    { cwd: project, stdio: ['ignore', 'pipe', 'pipe'] },
+  );
+  server.stdout!.on('data', (data) => {
+    output += data;
+  });
+  server.stderr!.on('data', (data) => {
+    output += data;
+  });
+  await expect
+    .poll(
+      async () => {
+        if (server?.exitCode !== null) throw new Error(output);
+
+        return fetch('http://localhost:16008/index.json').then(
+          (response) => response.ok,
+          () => false,
+        );
+      },
+      { timeout: 120000 },
+    )
+    .toBeTruthy();
+  browser = await chromium.launch();
+
+  const page = await browser.newPage();
+
+  page.on('pageerror', (error) => console.error(error.message));
+  await page.goto('http://localhost:16008/?path=/story/components-button--primary');
+
+  await expect(
+    page
+      .frameLocator('#storybook-preview-iframe')
+      .getByRole('button', { name: 'Continue', exact: true }),
+  ).toBeVisible();
+
+  await mkdir(path.join(project, 'empty-docs'));
+  await writeFile(
+    path.join(project, 'empty-docs/First.md'),
+    '---\ntitle: Guides/First\n---\n## First document after startup\n',
+  );
+  await page.getByRole('button', { name: 'Expand', exact: true }).click({ timeout: 15000 });
+
+  await expect(page.getByRole('link', { name: 'First', exact: true })).toBeVisible({
+    timeout: 15000,
+  });
+
+  await page.getByRole('link', { name: 'First', exact: true }).click();
+
+  await expect(
+    page
+      .frameLocator('#storybook-preview-iframe')
+      .getByRole('heading', { name: 'First document after startup' }),
+  ).toBeVisible({ timeout: 15000 });
+
+  console.log(
+    'Packed consumer: static build, missing-asset failure, and first Markdown added after startup passed.',
+  );
+} catch (error) {
+  console.error(error, output);
+  console.error(
+    'Generated files',
+    await readdir(path.join(project, 'example-markdown-generated')).catch(() => []),
+  );
+  console.error(
+    'Index',
+    await fetch('http://localhost:16008/index.json')
+      .then((response) => response.text())
+      .catch(() => 'unavailable'),
+  );
+
+  throw error;
+} finally {
+  await browser?.close();
+
+  if (server && server.exitCode === null) {
+    const exited = once(server, 'exit');
+
+    server.kill();
+    await exited;
+  }
+
+  await rm(project, { recursive: true, force: true });
+}
