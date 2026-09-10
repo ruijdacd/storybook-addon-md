@@ -135,3 +135,51 @@ test('status is rendered even without tags', async () => {
   await expect.element(page.getByRole('list', { name: 'Documentation tags' })).toBeVisible();
   expect(container.querySelector('[data-status="stable"]')?.textContent).toBe('stable');
 });
+
+test('default lengths scale with the root font size', async () => {
+  const html = globalThis.document.documentElement;
+  const original = html.style.fontSize;
+
+  try {
+    html.style.fontSize = '16px';
+    await render();
+
+    const heading = container.querySelector('h2')!;
+    const tag = container.querySelector('.storybook-addon-md-tag')!;
+
+    expect(getComputedStyle(heading).fontSize).toBe('24px');
+    expect(getComputedStyle(tag).padding).toBe('2px 8px');
+    html.style.fontSize = '20px';
+    expect(getComputedStyle(heading).fontSize).toBe('30px');
+    expect(getComputedStyle(tag).padding).toBe('2.5px 10px');
+  } finally {
+    html.style.fontSize = original;
+  }
+});
+
+test('monospace font follows the theme and supports a CSS override', async () => {
+  await render({ ...themes.light, fontCode: 'Courier New, monospace' }, [
+    { ...document, markdown: 'Inline `value`.\n\n```js\nconst value = 1;\n```' },
+  ]);
+
+  await expect.poll(() => container.querySelectorAll('code, pre.prismjs > div').length).toBe(2);
+
+  const code = container.querySelectorAll('code, pre.prismjs > div');
+  const expected = globalThis.document.createElement('span');
+
+  container.append(expected);
+  expected.style.fontFamily = 'Courier New, monospace';
+
+  for (const element of code) {
+    expect(getComputedStyle(element).fontFamily).toBe(getComputedStyle(expected).fontFamily);
+  }
+
+  container.style.setProperty('--sbmd-monospace-font-family', 'Consolas, monospace');
+  expected.style.fontFamily = 'Consolas, monospace';
+
+  for (const element of code) {
+    expect(getComputedStyle(element).fontFamily).toBe(getComputedStyle(expected).fontFamily);
+  }
+
+  expected.remove();
+});

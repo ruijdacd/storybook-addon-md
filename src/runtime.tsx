@@ -88,6 +88,7 @@ export function Documentation({
     '--sbmd-native-color': theme.color.defaultText,
     '--sbmd-native-link-color': theme.color.secondary,
     '--sbmd-native-font-family': theme.typography.fonts.base,
+    '--sbmd-native-monospace-font-family': theme.typography.fonts.mono,
     '--sbmd-native-border-color': theme.appBorderColor,
     '--sbmd-native-code-background': theme.background.content,
   } as CSSProperties;
