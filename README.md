@@ -43,7 +43,7 @@ The component gets a **Markdown** Docs entry with your guidance, status and tag 
 
 The tested setup is **Storybook 10.6.0**, **@storybook/react-vite 10.6.0**, **@storybook/addon-docs 10.6.0**, **Vite 7.3.6**, and **React 19.2.4**. Node 22.13+ is required; local verification uses Node 24.21.0 and CI uses Node 24 on Linux.
 
-This repository uses [Nub](https://nubjs.com/docs) 0.7.5. The checked-in `nub.lock` pins dependencies, and `.npmrc` selects the hoisted layout for Storybook and Vitest. CI installs with `nub install --frozen-lockfile`.
+This repository uses [Nub](https://nubjs.com/docs) 0.7.5. The checked-in `nub.lock` pins dependencies, and `.npmrc` selects the hoisted layout for Storybook and Vitest. `nub.jsonc` keeps scripts on standard Node without Nub runtime hooks. CI installs with `nub install --frozen-lockfile`.
 
 To build an installable tarball from this repository:
 
