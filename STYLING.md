@@ -178,9 +178,9 @@ export function MarkdownRenderer(document: MarkdownDocument) {
 }
 ```
 
-`MarkdownRenderer` receives `{ markdown, metadata, source }`: processed Markdown with resolved asset URLs, preserved frontmatter, and the source path relative to the project folder.
+`MarkdownRenderer` receives `{ markdown, metadata, source, heading? }`: processed Markdown with resolved asset URLs, preserved frontmatter, and the source path relative to the project folder.
 
-`Layout` receives `{ documents, title, attached, children, examples }`. Render `children` and `examples` to keep documentation and native example/props blocks. `examples` is `null` for standalone pages. `title` contains the standalone sidebar title and is empty for attached pages; `DefaultLayout` uses Storybook’s `Title` block for those.
+`Layout` receives `{ documents, title, attached, children, examples, heading, tagFields }`. A standalone leading H1 is extracted in the default pipeline and supplied as the rendered `heading` node; render it instead of your fallback title. The remaining Markdown is supplied through `children`, while source files and manifests stay intact. `tagFields` lists configured metadata fields for tag display. Render `children` and `examples` to keep documentation and native example/props blocks. `examples` is `null` for standalone pages. `title` contains the standalone sidebar title and is empty for attached pages; `DefaultLayout` uses Storybook’s `Title` block for those.
 
 Customization paths are relative to the project folder and must stay inside it. Missing files produce source-specific errors. Styling and presentation are independent options.
 

@@ -21,7 +21,12 @@ globalThis.document.body.append(container);
 
 let root: ReturnType<typeof createRoot>;
 
-async function render(theme = themes.light, documents = [document], presentation = {}) {
+async function render(
+  theme = themes.light,
+  documents = [document],
+  presentation = {},
+  tagFields: string[] = [],
+) {
   root = createRoot(container);
   await act(async () => {
     root.render(
@@ -30,6 +35,7 @@ async function render(theme = themes.light, documents = [document], presentation
           documents={documents}
           title="Guides/Introduction"
           presentation={presentation}
+          tagFields={tagFields}
         />
       </ThemeProvider>,
     );
@@ -182,4 +188,57 @@ test('monospace font follows the theme and supports a CSS override', async () =>
   }
 
   expected.remove();
+});
+
+test('standalone heading reaches custom layouts and renderers without duplicate titles', async () => {
+  const Layout = ({ heading, children }: LayoutProps) => (
+    <section>
+      {heading}
+      {children}
+    </section>
+  );
+  const doc = {
+    ...document,
+    heading: '# A *visible* title',
+    markdown: 'Body without the heading.',
+  };
+  await render(themes.light, [doc], { Layout });
+  await expect
+    .element(page.getByRole('heading', { level: 1 }))
+    .toHaveTextContent('A visible title');
+  expect(container.querySelectorAll('h1')).toHaveLength(1);
+  expect(container.querySelector('h1 em')?.textContent).toBe('visible');
+});
+
+test('default layout uses the prepared Markdown heading', async () => {
+  await render(themes.light, [{ ...document, heading: '# Visible title', markdown: 'Body' }]);
+  expect(container.querySelectorAll('h1')).toHaveLength(1);
+  await expect.element(page.getByRole('heading', { level: 1 })).toHaveTextContent('Visible title');
+});
+
+test('configured metadata tags deduplicate across fields and statuses without mutating metadata', async () => {
+  const metadata = {
+    tags: ['Actions', 'Stable'],
+    status: 'Stable',
+    category: 'Actions',
+    subcategory: ['Inputs', 'Actions'],
+    ignored: { nested: true },
+  };
+  const original = structuredClone(metadata);
+  await render(themes.light, [{ ...document, metadata }], {}, [
+    'category',
+    'subcategory',
+    'ignored',
+    'missing',
+  ]);
+  await expect
+    .element(page.getByRole('list', { name: 'Documentation tags' }))
+    .toHaveTextContent('ActionsInputsStable');
+  expect(container.querySelector('[data-status="Stable"]')?.textContent).toBe('Stable');
+  expect(metadata).toEqual(original);
+});
+
+test('extra metadata fields are not displayed by default', async () => {
+  await render(themes.light, [{ ...document, metadata: { category: 'Hidden' } }]);
+  expect(container.querySelector('.storybook-addon-md-tags')).toBeNull();
 });

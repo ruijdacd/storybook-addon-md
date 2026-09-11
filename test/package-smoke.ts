@@ -71,6 +71,26 @@ try {
   const mainFile = path.join(project, '.storybook/main.ts');
 
   await run(['install', '--no-frozen-lockfile'], project);
+  await exec(
+    process.execPath,
+    [
+      '--input-type=module',
+      '-e',
+      `
+    import assert from 'node:assert/strict';
+    import { readFile } from 'node:fs/promises';
+    import { parseMarkdown, readMarkdown, resolveStoryAssociations } from 'storybook-addon-md/node';
+    const document = await readMarkdown('components/Button.metadata.md', process.cwd());
+    assert.equal(document.original, await readFile(document.file, 'utf8'));
+    assert.equal(document.metadata.status, 'Stable');
+    assert.equal(document.stories.length, 1);
+    assert.deepEqual(await resolveStoryAssociations(document.file, document.metadata, process.cwd()), document.stories);
+    assert.deepEqual(parseMarkdown(document.original, document.file).metadata, document.metadata);
+    assert.throws(() => parseMarkdown('---\\ntags: invalid\\n---', 'invalid.md'), /tags must be/);
+  `,
+    ],
+    { cwd: project },
+  );
   await run(
     ['exec', '--', 'storybook', 'build', '-c', '.storybook-mcp', '--disable-telemetry'],
     project,
@@ -81,9 +101,9 @@ try {
   );
 
   for (const id of [
-    'guides-introduction--docs',
-    'components-button--markdown',
-    'components-toggle--markdown',
+    'guides-introduction--reference',
+    'components-button--reference',
+    'components-toggle--reference',
   ]) {
     assert.equal(entries[id]?.type, 'docs', id);
   }
@@ -97,11 +117,11 @@ try {
   const shared = await readFile(path.join(project, 'docs/Shared.md'), 'utf8');
 
   assert.equal(
-    staticDocs.docs['guides-introduction--docs'].content,
+    staticDocs.docs['guides-introduction--reference'].content,
     await readFile(path.join(project, 'docs/Introduction.md'), 'utf8'),
   );
   assert.equal(
-    staticComponents.components['components-button'].docs['components-button--markdown'].content,
+    staticComponents.components['components-button'].docs['components-button--reference'].content,
     `${await readFile(path.join(project, 'components/Button.metadata.md'), 'utf8')}\n\n${shared}`,
   );
 
@@ -191,12 +211,24 @@ try {
       .getByRole('button', { name: 'Continue', exact: true }),
   ).toBeVisible();
 
+  await page.goto('http://localhost:16008/?path=/docs/guides-authored--reference');
+  await expect(
+    page.frameLocator('#storybook-preview-iframe').getByRole('heading', { name: 'Authored MDX' }),
+  ).toBeVisible();
+
   await mkdir(path.join(project, 'empty-docs'));
   await writeFile(
     path.join(project, 'empty-docs/First.md'),
-    '---\ntitle: Guides/First\n---\n## First document after startup\n',
+    '---\ntitle: Guides/First\n---\n# First document after startup\n',
   );
-  await page.getByRole('button', { name: 'Expand', exact: true }).click({ timeout: 15000 });
+  await expect
+    .poll(
+      async () =>
+        (await (await fetch('http://localhost:16008/index.json')).json()).entries[
+          'guides-first--reference'
+        ],
+    )
+    .toBeTruthy();
 
   await expect(page.getByRole('link', { name: 'First', exact: true })).toBeVisible({
     timeout: 15000,
@@ -214,7 +246,10 @@ try {
   const original = await readFile(path.join(project, 'empty-docs/First.md'), 'utf8');
 
   await expect
-    .poll(async () => (await (await fetch(manifestUrl)).json()).docs['guides-first--docs']?.content)
+    .poll(
+      async () =>
+        (await (await fetch(manifestUrl)).json()).docs['guides-first--reference']?.content,
+    )
     .toBe(original);
 
   const mcpResponse = await fetch('http://localhost:16008/mcp', {
@@ -224,7 +259,7 @@ try {
       jsonrpc: '2.0',
       id: 1,
       method: 'tools/call',
-      params: { name: 'docs-show', arguments: { id: 'guides-first--docs' } },
+      params: { name: 'docs-show', arguments: { id: 'guides-first--reference' } },
     }),
   });
   const mcpText = await mcpResponse.text();
@@ -232,8 +267,32 @@ try {
   assert.equal(mcpResponse.status, 200, mcpText);
   assert(mcpText.includes(JSON.stringify(original).slice(1, -1)), mcpText);
 
+  const associated = '---\nstories: ../components/Button.stories.tsx\n---\n# Attached MCP source\n';
+  await writeFile(path.join(project, 'empty-docs/First.md'), associated);
+  await expect
+    .poll(
+      async () =>
+        (await (await fetch('http://localhost:16008/manifests/components.json')).json()).components[
+          'components-button'
+        ].docs['components-button--reference']?.content,
+    )
+    .toBe(associated);
+  const attachedResponse = await fetch('http://localhost:16008/mcp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 2,
+      method: 'tools/call',
+      params: { name: 'docs-show', arguments: { id: 'components-button' } },
+    }),
+  });
+  const attachedText = await attachedResponse.text();
+  assert.equal(attachedResponse.status, 200, attachedText);
+  assert(attachedText.includes(JSON.stringify(associated).slice(1, -1)), attachedText);
+
   console.log(
-    'Packed consumer: static build, missing-asset failure, live manifests, real MCP documentation, and first Markdown added after startup passed.',
+    'Packed consumer: public Node API, static build, missing-asset failure, live manifests, real MCP documentation, and first Markdown added after startup passed.',
   );
 } catch (error) {
   console.error(error, output);

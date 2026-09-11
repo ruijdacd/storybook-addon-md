@@ -16,11 +16,11 @@ for (const [mode, port] of [
     const button = await readFile('example/components/Button.metadata.md', 'utf8');
     const shared = await readFile('example/docs/Shared.md', 'utf8');
 
-    expect(docs.docs['guides-introduction--docs'].content).toBe(introduction);
-    expect(components['components-button'].docs['components-button--markdown'].content).toBe(
+    expect(docs.docs['guides-introduction--reference'].content).toBe(introduction);
+    expect(components['components-button'].docs['components-button--reference'].content).toBe(
       `${button}\n\n${shared}`,
     );
-    expect(components['components-toggle'].docs['components-toggle--markdown'].content).toBe(
+    expect(components['components-toggle'].docs['components-toggle--reference'].content).toBe(
       shared,
     );
   });
@@ -36,28 +36,30 @@ test('development: manifests refresh additions, edits, associations and deletion
     (await (await request.get('http://localhost:16009/manifests/docs.json')).json()).docs;
   const attached = async () =>
     (await (await request.get('http://localhost:16009/manifests/components.json')).json())
-      .components['components-toggle'].docs['components-toggle--markdown'];
+      .components['components-toggle'].docs['components-toggle--reference'];
   const shared = await readFile('example/docs/Shared.md', 'utf8');
 
   try {
     await writeFile(file, source);
     await expect
-      .poll(async () => (await docs())['guides-manifest-live--docs']?.content)
+      .poll(async () => (await docs())['guides-manifest-live--reference']?.content)
       .toBe(source);
-    expect((await docs())['guides-manifest-live--docs'].summary).toBe('Live summary');
+    expect((await docs())['guides-manifest-live--reference'].summary).toBe('Live summary');
 
     const edited = source.replace('Full source', 'Edited source');
 
     await writeFile(file, edited);
     await expect
-      .poll(async () => (await docs())['guides-manifest-live--docs']?.content)
+      .poll(async () => (await docs())['guides-manifest-live--reference']?.content)
       .toBe(edited);
 
     const associated = '---\nstories: ../components/Toggle.stories.tsx\n---\n# Attached live\n';
 
     await writeFile(file, associated);
     await expect.poll(async () => (await attached()).content).toBe(`${associated}\n\n${shared}`);
-    await expect.poll(async () => (await docs())['guides-manifest-live--docs']).toBeUndefined();
+    await expect
+      .poll(async () => (await docs())['guides-manifest-live--reference'])
+      .toBeUndefined();
     await rm(file);
     await expect.poll(async () => (await attached()).content).toBe(shared);
   } finally {
