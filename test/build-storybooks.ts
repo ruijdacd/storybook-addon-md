@@ -8,7 +8,7 @@ await Promise.all(
     ['example/.storybook', 'storybook-static'],
     ['example/.storybook-mcp', 'storybook-static-mcp'],
   ].map(async ([config, output]) => {
-    console.time(`Build ${config}`);
+    const startedAt = performance.now();
     try {
       await exec(
         process.execPath,
@@ -30,7 +30,7 @@ await Promise.all(
       }
       throw error;
     } finally {
-      console.timeEnd(`Build ${config}`);
+      console.error(`Build ${config}: ${((performance.now() - startedAt) / 1000).toFixed(2)}s`);
     }
   }),
 );

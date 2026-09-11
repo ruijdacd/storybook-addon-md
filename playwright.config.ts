@@ -1,10 +1,18 @@
 import { defineConfig } from '@playwright/test';
+import { availableParallelism, totalmem } from 'node:os';
 
 export default defineConfig({
   testDir: './test/browser',
   testMatch: '**/*.spec.ts',
-  workers: 4,
+  workers: 2,
   reporter: [['list'], ['json', { outputFile: 'playwright-report/results.json' }]],
+  metadata: {
+    node: process.version,
+    platform: process.platform,
+    cpus: availableParallelism(),
+    memoryGiB: Math.round(totalmem() / 1024 ** 3),
+    channel: process.env.PLAYWRIGHT_CHANNEL || 'chromium-headless-shell',
+  },
   timeout: 60000,
   globalTimeout: 180000,
   expect: { timeout: 15000 },
@@ -16,8 +24,14 @@ export default defineConfig({
   },
   projects: [
     {
+      name: 'ready',
+      testMatch: '**/ready.spec.ts',
+      workers: 1,
+    },
+    {
       name: 'rendering',
-      testIgnore: '**/watching.spec.ts',
+      testIgnore: ['**/watching.spec.ts', '**/ready.spec.ts'],
+      dependencies: ['ready'],
       fullyParallel: true,
     },
     {
