@@ -8,6 +8,7 @@ await Promise.all(
     ['example/.storybook', 'storybook-static'],
     ['example/.storybook-mcp', 'storybook-static-mcp'],
   ].map(async ([config, output]) => {
+    console.time(`Build ${config}`);
     try {
       await exec(
         process.execPath,
@@ -28,6 +29,8 @@ await Promise.all(
         if ('stderr' in error) process.stderr.write(String(error.stderr));
       }
       throw error;
+    } finally {
+      console.timeEnd(`Build ${config}`);
     }
   }),
 );

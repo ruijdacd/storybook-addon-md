@@ -12,7 +12,15 @@ const project = await mkdtemp(path.join(os.tmpdir(), 'storybook-md-consumer-'));
 let server: ChildProcess | undefined;
 let browser: Browser | undefined;
 let output = '';
-const run = (args: string[], cwd: string) => exec('nub', args, { cwd, maxBuffer: 5 * 1024 * 1024 });
+const run = async (args: string[], cwd: string) => {
+  const label = `Consumer: nub ${args.join(' ')}`;
+  console.time(label);
+  try {
+    return await exec('nub', args, { cwd, maxBuffer: 5 * 1024 * 1024 });
+  } finally {
+    console.timeEnd(label);
+  }
+};
 
 try {
   const { stdout } = await run(['pack', '--json', '--pack-destination', project], process.cwd());

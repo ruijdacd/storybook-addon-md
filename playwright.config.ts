@@ -4,6 +4,7 @@ export default defineConfig({
   testDir: './test/browser',
   testMatch: '**/*.spec.ts',
   workers: 4,
+  reporter: [['list'], ['json', { outputFile: 'playwright-report/results.json' }]],
   timeout: 60000,
   globalTimeout: 180000,
   expect: { timeout: 15000 },
