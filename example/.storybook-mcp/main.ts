@@ -4,6 +4,7 @@ import base, { markdownOptions } from '../.storybook/main';
 
 const config: StorybookConfig = {
   ...base,
+  docs: { defaultName: 'Reference' },
   features: { componentsManifest: true },
   addons: [
     '@storybook/addon-docs',

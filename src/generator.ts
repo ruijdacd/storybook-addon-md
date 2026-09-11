@@ -34,13 +34,14 @@ export function documentModule(document: DiscoveredDocument, output: string) {
     (asset, index) =>
       `import asset${index} from ${JSON.stringify(`${specifier(output, assetPath(asset.file, output))}?url&no-inline`)};`,
   );
-  const expression = document.assets.reduce(
-    (value, asset, index) =>
-      `${value}.split(${JSON.stringify(asset.token)}).join(asset${index}.replace('?no-inline', '') + ${JSON.stringify(asset.suffix)})`,
-    JSON.stringify(document.markdown),
-  );
+  const expression = (markdown: string) =>
+    document.assets.reduce(
+      (value, asset, index) =>
+        `${value}.split(${JSON.stringify(asset.token)}).join(asset${index}.replace('?no-inline', '') + ${JSON.stringify(asset.suffix)})`,
+      JSON.stringify(markdown),
+    );
 
-  return `${imports.join('\n')}\nexport default { source: ${JSON.stringify(document.source)}, metadata: JSON.parse(${JSON.stringify(JSON.stringify(document.metadata))}), markdown: ${expression} };\n`;
+  return `${imports.join('\n')}\nexport default { source: ${JSON.stringify(document.source)}, metadata: JSON.parse(${JSON.stringify(JSON.stringify(document.metadata))}), markdown: ${expression(document.markdown)}, heading: ${document.heading ? expression(document.heading) : 'undefined'} };\n`;
 }
 
 export async function generate(options: ContentOptions) {
@@ -111,12 +112,12 @@ export async function generate(options: ContentOptions) {
     if (stylesheet) imports.push(`import ${JSON.stringify(specifier(output, stylesheet))};`);
 
     const meta = group.story
-      ? '<Meta of={ComponentStories} name="Markdown" />'
+      ? `<Meta of={ComponentStories} name="${attribute(options.docsName ?? 'Docs')}" />`
       : `<Meta title="${attribute(group.title!)}" />`;
 
     files.set(
       pageFile(key),
-      `${imports.join('\n')}\n\n${meta}\n\n<Documentation documents={[${group.documents.map((_, index) => `document${index}`).join(', ')}]} attached={${Boolean(group.story)}} title={${JSON.stringify(group.title ?? '')}}${presentation ? ' presentation={presentation}' : ''} />\n`,
+      `${imports.join('\n')}\n\n${meta}\n\n<Documentation documents={[${group.documents.map((_, index) => `document${index}`).join(', ')}]} attached={${Boolean(group.story)}} title={${JSON.stringify(group.title ?? '')}} tagFields={${JSON.stringify(options.tagFields ?? [])}}${presentation ? ' presentation={presentation}' : ''} />\n`,
     );
   }
 

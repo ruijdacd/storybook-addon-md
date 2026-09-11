@@ -27,11 +27,24 @@ export function DefaultMarkdownRenderer({ markdown }: MarkdownDocument) {
   );
 }
 
-export function DefaultLayout({ documents, title, attached, children, examples }: LayoutProps) {
+export function DefaultLayout({
+  documents,
+  title,
+  attached,
+  children,
+  examples,
+  heading,
+  tagFields = [],
+}: LayoutProps) {
   const tags = [
     ...new Set(
       documents.flatMap(({ metadata }) =>
-        Array.isArray(metadata.tags) ? (metadata.tags as string[]) : [],
+        ['tags', ...tagFields].flatMap((field) => {
+          const value = metadata[field];
+          return (Array.isArray(value) ? value : [value]).filter(
+            (item): item is string => typeof item === 'string' && Boolean(item.trim()),
+          );
+        }),
       ),
     ),
   ];
@@ -47,16 +60,18 @@ export function DefaultLayout({ documents, title, attached, children, examples }
   return (
     <>
       <div className="storybook-addon-md-title">
-        {attached ? <Title /> : <h1>{title.split('/').at(-1)}</h1>}
+        {attached ? <Title /> : (heading ?? <h1>{title.split('/').at(-1)}</h1>)}
       </div>
 
       {(tags.length > 0 || statuses.length > 0) && (
         <ul className="storybook-addon-md-tags" aria-label="Documentation tags">
-          {tags.map((tag) => (
-            <li className="storybook-addon-md-tag" key={`tag:${tag}`}>
-              {tag}
-            </li>
-          ))}
+          {tags
+            .filter((tag) => !statuses.includes(tag))
+            .map((tag) => (
+              <li className="storybook-addon-md-tag" key={`tag:${tag}`}>
+                {tag}
+              </li>
+            ))}
 
           {statuses.map((status) => (
             <li className="storybook-addon-md-tag" data-status={status} key={`status:${status}`}>
@@ -77,11 +92,13 @@ export function Documentation({
   title,
   attached = false,
   presentation = {},
+  tagFields = [],
 }: {
   documents: MarkdownDocument[];
   title: string;
   attached?: boolean;
   presentation?: Presentation;
+  tagFields?: string[];
 }) {
   const theme = useTheme() as StorybookTheme;
   const defaults = {
@@ -94,6 +111,9 @@ export function Documentation({
   } as CSSProperties;
   const Layout = presentation.Layout ?? DefaultLayout;
   const Renderer = presentation.MarkdownRenderer ?? DefaultMarkdownRenderer;
+  const first = documents[0];
+  const heading =
+    !attached && first?.heading ? <Renderer {...first} markdown={first.heading} /> : undefined;
   const examples = attached ? (
     <>
       <Primary />
@@ -104,7 +124,14 @@ export function Documentation({
 
   return (
     <div className="storybook-addon-md-page" style={defaults}>
-      <Layout documents={documents} title={title} attached={attached} examples={examples}>
+      <Layout
+        documents={documents}
+        title={title}
+        attached={attached}
+        examples={examples}
+        heading={heading}
+        tagFields={tagFields}
+      >
         {documents.map((document) => (
           <div className="storybook-addon-md" key={document.source}>
             <Renderer {...document} />

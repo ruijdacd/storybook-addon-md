@@ -13,6 +13,7 @@ import { visit } from 'unist-util-visit';
 export interface ContentOptions extends MarkdownOptions {
   root: string;
   output: string;
+  docsName?: string;
 }
 
 export interface Frontmatter extends Record<string, unknown> {
@@ -126,7 +127,7 @@ export function parseMarkdown(
   return { body: normalized.slice(closing.index + closing[0].length).replace(/^\n/, ''), metadata };
 }
 
-async function associations(file: string, metadata: Frontmatter, root: string) {
+export async function resolveStoryAssociations(file: string, metadata: Frontmatter, root: string) {
   if ('stories' in metadata) {
     const references = Array.isArray(metadata.stories) ? metadata.stories : [metadata.stories!];
 
@@ -176,7 +177,7 @@ async function associations(file: string, metadata: Frontmatter, root: string) {
   return [await localFile(matches[0], root, file, 'story reference')];
 }
 
-export async function resolveAssets(body: string, file: string, root: string) {
+export async function resolveAssets(body: string, file: string, root: string, standalone = false) {
   const tree = markdown.parse(body);
   const nodes: (Link | Image | Definition)[] = [];
 
@@ -215,7 +216,18 @@ export async function resolveAssets(body: string, file: string, root: string) {
     node.url = token;
   }
 
-  return { markdown: markdown.stringify(tree), assets };
+  const first = tree.children[0];
+  const heading =
+    standalone && first?.type === 'heading' && first.depth === 1
+      ? markdown.stringify({
+          ...tree,
+          children: [first, ...tree.children.filter((node) => node.type === 'definition')],
+        })
+      : undefined;
+
+  if (heading) tree.children.shift();
+
+  return { markdown: markdown.stringify(tree), assets, heading };
 }
 
 export async function discover({ root, patterns, output }: ContentOptions) {
@@ -243,7 +255,9 @@ export async function discover({ root, patterns, output }: ContentOptions) {
       '**/node_modules/**',
       '**/.git/**',
       '**/storybook-static/**',
-      `${slash(path.relative(root, output))}/**`,
+      ...(path.relative(root, output).startsWith('..')
+        ? []
+        : [`${slash(path.relative(root, output))}/**`]),
     ],
   });
 
@@ -252,16 +266,13 @@ export async function discover({ root, patterns, output }: ContentOptions) {
       .sort()
       .filter((file) => file.endsWith('.md'))
       .map(async (file) => {
-        await localFile(file, root, file, 'Markdown file');
-
-        const original = await readFile(file, 'utf8');
-        const { body, metadata } = parseMarkdown(original, file);
-        const stories = await associations(file, metadata, root);
-        const content = await resolveAssets(body, file, root);
+        const { original, body, metadata, stories } = await readMarkdown(file, root);
+        const content = await resolveAssets(body, file, root, !stories.length);
 
         return {
           file,
           original,
+          body,
           source: slash(path.relative(root, file)),
           title:
             metadata.title ??
@@ -272,4 +283,19 @@ export async function discover({ root, patterns, output }: ContentOptions) {
         };
       }),
   );
+}
+
+export async function readMarkdown(file: string, root: string) {
+  root = path.resolve(root);
+  file = path.resolve(root, file);
+
+  if (!file.endsWith('.md')) throw fail(file, 'Markdown file must have a .md extension');
+
+  await localFile(file, root, file, 'Markdown file');
+
+  const original = await readFile(file, 'utf8');
+  const { body, metadata } = parseMarkdown(original, file);
+  const stories = await resolveStoryAssociations(file, metadata, root);
+
+  return { file, original, body, metadata, stories };
 }

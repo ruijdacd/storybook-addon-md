@@ -3,6 +3,7 @@ import { SystemDocsContainer } from './SystemDocsContainer';
 import type { Preview } from '@storybook/react-vite';
 
 const preview: Preview = {
+  tags: ['autodocs'],
   parameters: {
     options: {
       storySort: { method: 'alphabetical', order: ['Guides', 'Components'], includeNames: false },

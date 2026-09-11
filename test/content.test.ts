@@ -4,6 +4,7 @@ import { mkdtemp, mkdir, writeFile, readFile, rm, readdir } from 'node:fs/promis
 import os from 'node:os';
 import path from 'node:path';
 import { discover, parseMarkdown, resolveAssets } from '../src/content.ts';
+import { readMarkdown, resolveStoryAssociations } from '../src/node.ts';
 import { generate } from '../src/generator.ts';
 import { stories, watchDocumentation } from '../src/preset.ts';
 
@@ -468,4 +469,107 @@ test('discovery keeps explicit files, braces, extglobs, and negative patterns', 
   }
 
   assert.deepEqual(await discover({ ...config, patterns: ['docs'] }), []);
+});
+
+test('public Node API shares discovery validation and preserves source and body', async (t) => {
+  const { root, config, put } = await fixture(t);
+  const original =
+    '---\ntitle: Guides/Sidebar\ncategory: Actions\ntags: [Stable]\nstatus: Stable\n---\n# Visible title\n\nBody';
+  const file = await put('Guide.md', original);
+  const parsed = await readMarkdown('Guide.md', root);
+  const [discovered] = await discover(config);
+
+  assert.equal(parsed.original, original);
+  assert.equal(parsed.body, '# Visible title\n\nBody');
+  assert.deepEqual(parsed.metadata, discovered.metadata);
+  assert.deepEqual(parsed.stories, discovered.stories);
+  assert.equal(discovered.original, original);
+  assert.equal(discovered.body, parsed.body);
+  assert.equal(discovered.title, 'Guides/Sidebar');
+  assert.equal(discovered.heading, '# Visible title\n');
+  assert.equal(discovered.markdown, 'Body\n');
+  await assert.rejects(readMarkdown('Guide.mdx', root), /\.md extension/);
+
+  for (const field of ['tags: text', 'tags: [3]', 'status: 3', 'status: ""']) {
+    await put('Guide.md', `---\n${field}\n---\nBody`);
+    await assert.rejects(readMarkdown(file, root), /Guide.md:/);
+    await assert.rejects(discover(config), /Guide.md:/);
+  }
+
+  for (const extension of ['ts', 'tsx', 'js', 'jsx']) {
+    const story = await put(`Button.stories.${extension}`);
+    assert.deepEqual(
+      await resolveStoryAssociations(file, { stories: `./Button.stories.${extension}` }, root),
+      [story],
+    );
+  }
+  for (const stories of ['/Button.stories.ts', './Button.ts', './Button.stories.mjs']) {
+    await assert.rejects(resolveStoryAssociations(file, { stories }, root), /relative .stories/);
+  }
+  await assert.rejects(
+    resolveStoryAssociations(file, { stories: './Missing.stories.ts' }, root),
+    /missing story reference/,
+  );
+  const sibling = await put('Button.metadata.md', 'Body');
+  await assert.rejects(readMarkdown(sibling, root), /ambiguous sibling/);
+});
+
+test('leading ATX and Setext titles are extracted only for standalone pages', async (t) => {
+  const { root, put } = await fixture(t);
+  const file = await put('guide.md');
+  await put('icon.svg', '<svg/>');
+
+  for (const body of ['\n# A *formatted* title\n\nBody', 'A title\n=======\n\nBody']) {
+    const result = await resolveAssets(body, file, root, true);
+    assert.match(result.heading!, /^# A/);
+    assert.equal(result.markdown, 'Body\n');
+    assert.equal((await resolveAssets(body, file, root)).heading, undefined);
+  }
+  for (const body of ['## Overview', 'Paragraph\n\n# Later', '> # Quoted', '```md\n# Code\n```']) {
+    assert.equal((await resolveAssets(body, file, root, true)).heading, undefined);
+  }
+  const linked = await resolveAssets(
+    '# [Title][link] ![Icon](icon.svg)\n\nBody\n\n[link]: https://example.com',
+    file,
+    root,
+    true,
+  );
+  assert.match(linked.heading!, /SBMDASSET0END/);
+  assert.match(linked.heading!, /https:\/\/example.com/);
+});
+
+test('generated attached pages respect configured docs names and tag fields', async (t) => {
+  const { root, config, put } = await fixture(t);
+  await put('Button.stories.ts');
+  await put('Button.metadata.md', '# Guidance');
+  for (const docsName of [undefined, 'Component Guide']) {
+    await generate({ ...config, docsName, tagFields: ['category', 'subcategory'] });
+    const page = (await readdir(config.output)).find((file) => file.endsWith('.mdx'))!;
+    const content = await readFile(path.join(config.output, page), 'utf8');
+    assert.match(content, new RegExp(`name="${docsName ?? 'Docs'}"`));
+    assert.match(content, /tagFields=\{\["category","subcategory"\]\}/);
+  }
+  const result = await stories([], {
+    configDir: path.join(root, '.storybook'),
+    patterns: config.patterns,
+    presets: { apply: async () => ({ defaultName: 'Reference' }) },
+  });
+  const generated = result[0];
+  assert(typeof generated !== 'string');
+  t.onTestFinished(() => rm(generated.directory, { recursive: true, force: true }));
+  const page = (await readdir(generated.directory)).find((file) => file.endsWith('.mdx'))!;
+  assert.match(await readFile(path.join(generated.directory, page), 'utf8'), /name="Reference"/);
+});
+
+test('tagFields rejects invalid configuration', async (t) => {
+  const { root } = await fixture(t);
+  for (const tagFields of ['category', [3], ['Category'], ['']]) {
+    await assert.rejects(
+      Reflect.apply(stories, undefined, [
+        [],
+        { configDir: path.join(root, '.storybook'), patterns: ['**/*.md'], tagFields },
+      ]),
+      /tagFields must be/,
+    );
+  }
 });

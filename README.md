@@ -61,7 +61,19 @@ Use buttons to trigger actions.
 - Confirm a choice.
 ```
 
-The component gets a **Markdown** Docs entry with the content, status and tag chips, examples, and props. Existing stories and Autodocs remain available.
+The component gets one **Docs** entry with Markdown, status and tag chips, examples, and automatic props. The name follows Storybook's `docs.defaultName`, falling back to `Docs`.
+
+Enable Autodocs at project level in `.storybook/preview.ts`:
+
+```ts
+export default {
+  tags: ['autodocs'],
+};
+```
+
+Storybook 10.6.0 replaces project-level Autodocs with the attached Markdown page. Components without Markdown keep ordinary Autodocs. Use `tags: ['!autodocs']` on components that should not have automatic docs. Component-only or story-only `autodocs` tags conflict with attached MDX in this Storybook version; move the enabling tag to the preview. Native props and examples on Markdown pages do not require an `autodocs` tag.
+
+Authored MDX keeps its title and explicit `name`. Additional attached MDX pages can use a distinct name such as `<Meta of={ButtonStories} name="Design notes" />`. An authored page using the default docs name for the same component conflicts with the addon page: keep the authored page and exclude that component's Markdown from `patterns` (or remove its association). The addon does not overwrite authored pages.
 
 The sibling convention supports `.stories.tsx`, `.stories.ts`, `.stories.jsx`, and `.stories.js`. To associate a different file, or share a document across components, set `stories` relative to the Markdown file:
 
@@ -89,6 +101,8 @@ Write ordinary Markdown here.
 
 Without a title, `docs/Introduction.md` appears at `Documentation/docs/Introduction`.
 
+A leading Markdown H1 supplies the visible title, including inline formatting. Otherwise the final segment of `title` is shown. Both `# Heading` and Setext H1 syntax work; a later H1 is ordinary content. Sidebar placement and IDs always use the configured or inferred sidebar title. The original file and manifest content remain unchanged.
+
 ### Frontmatter
 
 YAML frontmatter is optional. Use lowercase field names.
@@ -113,11 +127,58 @@ Invalid frontmatter, missing or ambiguous story references, and missing local as
 | `generatedDir` | `storybook-markdown-generated` | Disposable output folder under the working directory.           |
 | `stylesheet`   | None                           | Custom stylesheet path.                                         |
 | `manifests`    | `false`                        | Include original Markdown in Storybook documentation manifests. |
+| `tagFields`    | `[]`                           | Additional frontmatter fields displayed as tags.                |
 | `presentation` | None                           | Module exporting `Layout` and/or `MarkdownRenderer`.            |
 
 Globs and customization paths start from your project folder (the parent of `.storybook` by default). Keep the config and local files inside that folder. Restart Storybook after changing options.
 
 `generatedDir` must be a visible folder name using letters, digits, hyphens, or underscores. Hidden folders, nested paths, `node_modules`, and `storybook-static` are unsupported. Ignore the folder in Git; the addon manages its contents.
+
+### Docs names and metadata tags
+
+```ts
+const config: StorybookConfig = {
+  framework: '@storybook/react-vite',
+  docs: { defaultName: 'Reference' },
+  stories: ['../src/**/*.stories.@(ts|tsx|js|jsx)', '../docs/**/*.mdx'],
+  addons: [
+    '@storybook/addon-docs',
+    {
+      name: 'storybook-addon-md',
+      options: {
+        patterns: ['src/**/*.md', 'docs/**/*.md'],
+        tagFields: ['category', 'subcategory'],
+      },
+    },
+  ],
+};
+```
+
+`tagFields` adds string values and string array items from those fields to the existing tags. Missing fields, blank strings, and non-string values are ignored. Labels are deduplicated by exact value across documents, tags, configured fields, and status; status takes precedence and retains its original `data-status`. Metadata is not modified. Consumers can remove adapters that only copied these fields into `tags`.
+
+### Node parsing and CI checks
+
+Use the Node-only `storybook-addon-md/node` export. It shares discovery's parser and story resolution without loading Storybook or browser code:
+
+```ts
+import { readMarkdown, parseMarkdown, resolveStoryAssociations } from 'storybook-addon-md/node';
+
+const root = process.cwd();
+const document = await readMarkdown('src/Button.metadata.md', root);
+
+if (!document.body.includes('## When to use')) {
+  throw new Error(`${document.file}: missing When to use section`);
+}
+
+const parsed = parseMarkdown('---\ntags: [Actions]\n---\n## Overview', 'virtual.md');
+const stories = await resolveStoryAssociations(document.file, document.metadata, root);
+```
+
+`readMarkdown(file, root)` accepts a root-relative or absolute `.md` path and returns `{ file, original, body, metadata, stories }`. `file` and resolved `stories` are absolute paths. `original` is the complete unchanged source; `body` excludes frontmatter and normalizes BOM/CRLF just as discovery does.
+
+`parseMarkdown(text, source)` returns `{ body, metadata }` and validates YAML, lowercase keys, title, tags, status, and story-reference value shapes. `source` labels errors. `resolveStoryAssociations(file, metadata, root)` takes parsed metadata and absolute paths, checks relative references, the four supported story extensions, file existence and root boundaries, and missing or ambiguous `.metadata.md` siblings. Explicit references take precedence. These functions throw source-specific errors; consumers can add their own template checks using `body` and metadata.
+
+This is not a separate validation framework. These functions do not check local assets, duplicate sidebar titles, or whether stories match the consuming Storybook's globs; discovery/build still performs the relevant integration checks. Filesystem dependencies are confined to Node entry points, never the runtime export.
 
 ## Documentation manifests and MCP
 
@@ -141,6 +202,8 @@ const config: StorybookConfig = {
   ],
 };
 ```
+
+Use MCP's `docs-list` to find IDs, then `docs-show` with a component ID (for attached guidance) or standalone documentation ID.
 
 For MCP access, install `@storybook/addon-mcp@10.6.0` and connect your MCP client to `http://localhost:6006/mcp`. Its Get Documentation tool is named `docs-show` in 10.6.0. Omit that addon if you only need JSON manifests. It is not a dependency of `storybook-addon-md`.
 
@@ -172,7 +235,7 @@ See [Styling](STYLING.md) for all variables, status colors, theme switching, and
 - Links to `.md` files open the original source, not a rendered Docs page. Use a Storybook URL such as `/?path=/docs/guides-introduction--docs` for page navigation.
 - Braces and JSX-like text are treated as content. Raw HTML renders as text by default.
 - Set Storybook’s `parameters.options.storySort` for explicit sidebar ordering. See the [example preview](https://github.com/ruijdacd/storybook-addon-md/blob/main/example/.storybook/preview.ts).
-- The attached Docs entry name **Markdown** is reserved. Multiple development Storybooks sharing one config directory are unsupported.
+- Multiple development Storybooks sharing one config directory are unsupported.
 
 ## Examples and contributing
 
@@ -182,7 +245,7 @@ Install dependencies with **Nub 0.7.5** and **Node 24.11+**:
 nub install
 ```
 
-Choose either example. They share stories, Markdown, and styling, with separate Storybook configurations:
+Choose either example. They share stories, Markdown, and styling, with separate Storybook configurations. The MCP example sets `docs.defaultName: 'Reference'` to exercise custom docs names:
 
 | Example     | Configuration                         | Run                            | Build                         |
 | ----------- | ------------------------------------- | ------------------------------ | ----------------------------- |

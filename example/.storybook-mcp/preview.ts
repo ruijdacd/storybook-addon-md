@@ -1,1 +1,3 @@
-export { default } from '../.storybook/preview';
+import preview from '../.storybook/preview';
+
+export default { ...preview, tags: ['autodocs'] };

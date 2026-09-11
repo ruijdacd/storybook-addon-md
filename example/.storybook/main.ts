@@ -10,7 +10,7 @@ export const markdownOptions = {
 
 const config: StorybookConfig = {
   framework: '@storybook/react-vite',
-  stories: ['../components/*.stories.tsx'],
+  stories: ['../components/*.stories.tsx', '../docs/*.mdx'],
   addons: [
     '@storybook/addon-docs',
     {
