@@ -17,6 +17,8 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      PLAYWRIGHT_CHANNEL: chrome
     steps:
       - uses: actions/checkout@v4
       - uses: nubjs/setup-nub@v0.5.0
@@ -29,7 +31,6 @@ jobs:
       - run: nub run format:check
       - run: nub audit --audit-level=high
       - run: nub run test
-      - run: nub exec playwright install --with-deps --only-shell chromium
       - run: nub run test:browser
       - run: nub run test:e2e
         if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')

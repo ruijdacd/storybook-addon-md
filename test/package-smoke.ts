@@ -198,7 +198,7 @@ try {
       { timeout: 120000 },
     )
     .toBeTruthy();
-  browser = await chromium.launch();
+  browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL });
 
   const page = await browser.newPage();
 
