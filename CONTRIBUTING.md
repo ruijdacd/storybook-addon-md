@@ -28,6 +28,8 @@ The package build uses [tsdown](https://tsdown.dev) to emit ESM and TypeScript d
 
 Watch modes are available through `test:watch` and `test:browser:watch`. End-to-end tests use ports 16006/16007 for the default example and 16009/16010 for the MCP example; the package check uses 16008. Run only one development Storybook per config directory when testing file watching.
 
+Pull requests run build/type checks, lint, formatting, the dependency audit, unit tests, and browser component tests. Pushes to `main` and manual CI runs also run the full end-to-end and packed-consumer suites. To check integration before merging, run the CI workflow manually on your branch. CI installs only Chromium's headless shell and cancels superseded runs on the same PR or branch.
+
 Use `nub run storybook` for the default example on port 6006, or `nub run storybook:mcp` for the MCP example on port 6007. Build the latter with `nub run build-storybook:mcp`. Both configurations share the content and presentation in `example/`.
 
 ## Releases

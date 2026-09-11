@@ -2,10 +2,16 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   verify:
@@ -18,15 +24,17 @@ jobs:
           node-version: 24
           nub-version: 0.7.5
       - run: nub install --frozen-lockfile
-      - run: nub exec playwright install --with-deps chromium
       - run: nub run check
       - run: nub run lint
       - run: nub run format:check
       - run: nub audit --audit-level=high
       - run: nub run test
+      - run: nub exec playwright install --with-deps --only-shell chromium
       - run: nub run test:browser
       - run: nub run test:e2e
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
       - run: nub run test:package
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
