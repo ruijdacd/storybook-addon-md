@@ -24,14 +24,8 @@ export default defineConfig({
   },
   projects: [
     {
-      name: 'ready',
-      testMatch: '**/ready.spec.ts',
-      workers: 1,
-    },
-    {
       name: 'rendering',
-      testIgnore: ['**/watching.spec.ts', '**/ready.spec.ts'],
-      dependencies: ['ready'],
+      testIgnore: '**/watching.spec.ts',
       fullyParallel: true,
     },
     {
