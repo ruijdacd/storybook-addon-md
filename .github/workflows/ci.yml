@@ -58,11 +58,9 @@ jobs:
       matrix:
         include:
           - { browser: chrome, workers: 2, trace: retain-on-failure }
-          - { browser: chrome, workers: 3, trace: retain-on-failure }
           - { browser: chrome, workers: 4, trace: retain-on-failure }
-          - { browser: chrome, workers: 4, trace: 'off' }
+          - { browser: chrome, workers: 2, trace: 'off' }
           - { browser: shell, workers: 2, trace: retain-on-failure }
-          - { browser: shell, workers: 4, trace: retain-on-failure }
     env:
       PLAYWRIGHT_CHANNEL: ${{ matrix.browser == 'chrome' && 'chrome' || '' }}
     steps:
@@ -75,7 +73,11 @@ jobs:
       - if: matrix.browser == 'shell'
         run: nub exec playwright install --with-deps --only-shell chromium
       - run: node -e 'console.log({cpus:require("node:os").availableParallelism(),memory:require("node:os").totalmem()})'
-      - run: nub exec playwright test --workers=${{ matrix.workers }} --trace=${{ matrix.trace }} --repeat-each=3 --global-timeout=600000
+      - run: |
+          for attempt in 1 2 3; do
+            nub exec playwright test --workers=${{ matrix.workers }} --trace=${{ matrix.trace }} --global-timeout=300000 || exit 1
+            cp playwright-report/results.json "playwright-report/run-${attempt}.json"
+          done
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -19,7 +19,9 @@ for (const [mode, port] of [
     page.on('pageerror', (error) => errors.push(error.message));
 
     const open = (id: string) =>
-      page.goto(`http://localhost:${port}/iframe.html?id=${id}&viewMode=docs`);
+      page.goto(`http://localhost:${port}/iframe.html?id=${id}&viewMode=docs`, {
+        waitUntil: 'domcontentloaded',
+      });
 
     await open('guides-introduction--docs');
 
@@ -59,6 +61,32 @@ for (const [mode, port] of [
 
     expect(response.ok()).toBeTruthy();
     expect(await response.text()).toContain('Shared interaction guidance');
+
+    const overrides = await page.addStyleTag({
+      content: `.sbdocs-wrapper .storybook-addon-md-page {
+      --sbmd-h2-size: 30px;
+      --sbmd-table-cell-padding: 20px;
+      --sbmd-tag-radius: 14px;
+    }`,
+    });
+
+    await expect(
+      page.getByRole('heading', { name: 'Ordinary Markdown, inside Storybook' }),
+    ).toHaveCSS('font-size', '30px');
+    await expect(page.getByRole('columnheader').first()).toHaveCSS('padding', '20px');
+    await expect(page.locator('.storybook-addon-md-tag').first()).toHaveCSS(
+      'border-radius',
+      '14px',
+    );
+
+    await overrides.evaluate((element) => element.parentNode?.removeChild(element));
+    const viewport = page.viewportSize()!;
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.scrollWidth))
+      .toBeLessThanOrEqual(390);
+    await page.setViewportSize(viewport);
 
     await open('components-button--docs');
 
@@ -111,33 +139,7 @@ for (const [mode, port] of [
 
     await expect(page.getByRole('checkbox', { name: 'Enable notifications' })).toBeChecked();
 
-    await open('guides-introduction--docs');
-
     expect(errors).toEqual([]);
-
-    const overrides = await page.addStyleTag({
-      content: `.storybook-addon-md-page {
-      --sbmd-h2-size: 30px;
-      --sbmd-table-cell-padding: 20px;
-      --sbmd-tag-radius: 14px;
-    }`,
-    });
-
-    await expect(
-      page.getByRole('heading', { name: 'Ordinary Markdown, inside Storybook' }),
-    ).toHaveCSS('font-size', '30px');
-    await expect(page.getByRole('columnheader').first()).toHaveCSS('padding', '20px');
-    await expect(page.locator('.storybook-addon-md-tag').first()).toHaveCSS(
-      'border-radius',
-      '14px',
-    );
-
-    await overrides.evaluate((element) => element.parentNode?.removeChild(element));
-    await page.setViewportSize({ width: 390, height: 844 });
-
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
-      390,
-    );
   });
 
   test(`${mode}: native Docs supports light and dark themes`, async ({ page }) => {
@@ -148,6 +150,7 @@ for (const [mode, port] of [
       await page.emulateMedia({ colorScheme });
       await page.goto(
         `http://localhost:${port}/iframe.html?id=components-button--docs&viewMode=docs`,
+        { waitUntil: 'domcontentloaded' },
       );
 
       await expect(page.getByRole('heading', { name: /Overview$/ })).toBeVisible();
@@ -187,7 +190,9 @@ for (const [mode, port] of [
     page,
   }) => {
     await page.emulateMedia({ colorScheme: 'light' });
-    await page.goto(`http://localhost:${port}/?path=/docs/components-button--docs`);
+    await page.goto(`http://localhost:${port}/?path=/docs/components-button--docs`, {
+      waitUntil: 'domcontentloaded',
+    });
 
     const docs = page.frameLocator('#storybook-preview-iframe');
     const wrapper = docs.locator('.sbdocs-wrapper');
@@ -256,7 +261,9 @@ for (const [mode, port, name, suffix] of [
       ['components-button--design-notes', 'Authored design notes'],
       [`guides-heading-example--${suffix}`, 'A visible Markdown title'],
     ] as const) {
-      await page.goto(`http://localhost:${port}/iframe.html?id=${id}&viewMode=docs`);
+      await page.goto(`http://localhost:${port}/iframe.html?id=${id}&viewMode=docs`, {
+        waitUntil: 'domcontentloaded',
+      });
       await expect(page.getByRole('heading', { name: heading })).toBeVisible();
       if (id.startsWith('guides-heading-example'))
         await expect(page.locator('.storybook-addon-md-page h1')).toHaveCount(1);

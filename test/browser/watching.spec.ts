@@ -11,7 +11,9 @@ test('development: additions after startup appear in the sidebar, update, and di
     (await (await request.get('http://localhost:16006/index.json')).json()).entries;
 
   try {
-    await page.goto('http://localhost:16006/?path=/docs/guides-introduction--docs');
+    await page.goto('http://localhost:16006/?path=/docs/guides-introduction--docs', {
+      waitUntil: 'domcontentloaded',
+    });
 
     const preview = page.frameLocator('#storybook-preview-iframe');
 
@@ -61,7 +63,9 @@ test('development: source errors are visible and recover after correction', asyn
         ),
       )
       .toBeTruthy();
-    await page.goto('http://localhost:16006/iframe.html?id=guides-recovery--docs&viewMode=docs');
+    await page.goto('http://localhost:16006/iframe.html?id=guides-recovery--docs&viewMode=docs', {
+      waitUntil: 'domcontentloaded',
+    });
 
     await expect(page.getByRole('heading', { name: 'Valid document' })).toBeVisible();
 
@@ -96,7 +100,9 @@ test('development: stylesheet edits update the Markdown content live', async ({ 
   const original = await readFile(file, 'utf8');
 
   try {
-    await page.goto('http://localhost:16006/iframe.html?id=components-button--docs&viewMode=docs');
+    await page.goto('http://localhost:16006/iframe.html?id=components-button--docs&viewMode=docs', {
+      waitUntil: 'domcontentloaded',
+    });
 
     const heading = page.getByRole('heading', { name: /Overview$/ });
 
@@ -128,7 +134,9 @@ test('development: adding and removing Markdown replaces and restores ordinary A
       '---\nstories: ../components/Autodocs.stories.tsx\n---\n## Added guidance\n',
     );
     await expect.poll(async () => (await entry()).importPath).toContain('page-');
-    await page.goto(`http://localhost:16006/iframe.html?id=${id}&viewMode=docs`);
+    await page.goto(`http://localhost:16006/iframe.html?id=${id}&viewMode=docs`, {
+      waitUntil: 'domcontentloaded',
+    });
     await expect(page.getByRole('heading', { name: 'Added guidance' })).toBeVisible();
     await expect(
       page.getByRole('button', { name: 'Automatic example', exact: true }),
@@ -137,7 +145,9 @@ test('development: adding and removing Markdown replaces and restores ordinary A
     await rm(file);
     await expect.poll(async () => (await entry()).importPath).toContain('Autodocs.stories');
     const restored = await page.context().newPage();
-    await restored.goto(`http://localhost:16006/iframe.html?id=${id}&viewMode=docs`);
+    await restored.goto(`http://localhost:16006/iframe.html?id=${id}&viewMode=docs`, {
+      waitUntil: 'domcontentloaded',
+    });
     await expect(restored.getByRole('heading', { name: 'Autodocs', exact: true })).toBeVisible();
     await expect(
       restored.getByRole('button', { name: 'Automatic example', exact: true }),
