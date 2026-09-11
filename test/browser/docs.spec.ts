@@ -454,10 +454,11 @@ test('development: adding and removing Markdown replaces and restores ordinary A
     await expect(page.getByRole('row').filter({ hasText: 'variant' })).toBeVisible();
     await rm(file);
     await expect.poll(async () => (await entry()).importPath).toContain('Autodocs.stories');
-    await page.reload();
-    await expect(page.getByRole('heading', { name: 'Autodocs', exact: true })).toBeVisible();
+    const restored = await page.context().newPage();
+    await restored.goto(`http://localhost:16006/iframe.html?id=${id}&viewMode=docs`);
+    await expect(restored.getByRole('heading', { name: 'Autodocs', exact: true })).toBeVisible();
     await expect(
-      page.getByRole('button', { name: 'Automatic example', exact: true }),
+      restored.getByRole('button', { name: 'Automatic example', exact: true }),
     ).toBeVisible();
   } finally {
     await rm(file, { force: true });
