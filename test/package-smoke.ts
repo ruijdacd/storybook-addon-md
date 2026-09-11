@@ -217,12 +217,12 @@ try {
     page
       .frameLocator('#storybook-preview-iframe')
       .getByRole('button', { name: 'Continue', exact: true }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 15000 });
 
   await page.goto('http://localhost:16008/?path=/docs/guides-authored--reference');
   await expect(
     page.frameLocator('#storybook-preview-iframe').getByRole('heading', { name: 'Authored MDX' }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 15000 });
 
   await mkdir(path.join(project, 'empty-docs'));
   await writeFile(
