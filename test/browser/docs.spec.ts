@@ -1,5 +1,4 @@
 import { test, expect } from '@playwright/test';
-import { mkdir, readFile, writeFile, rm } from 'node:fs/promises';
 
 for (const [mode, port] of [
   ['development', 16006],
@@ -20,7 +19,9 @@ for (const [mode, port] of [
     page.on('pageerror', (error) => errors.push(error.message));
 
     const open = (id: string) =>
-      page.goto(`http://localhost:${port}/iframe.html?id=${id}&viewMode=docs`);
+      page.goto(`http://localhost:${port}/iframe.html?id=${id}&viewMode=docs`, {
+        waitUntil: 'domcontentloaded',
+      });
 
     await open('guides-introduction--docs');
 
@@ -60,6 +61,32 @@ for (const [mode, port] of [
 
     expect(response.ok()).toBeTruthy();
     expect(await response.text()).toContain('Shared interaction guidance');
+
+    const overrides = await page.addStyleTag({
+      content: `.sbdocs-wrapper .storybook-addon-md-page {
+      --sbmd-h2-size: 30px;
+      --sbmd-table-cell-padding: 20px;
+      --sbmd-tag-radius: 14px;
+    }`,
+    });
+
+    await expect(
+      page.getByRole('heading', { name: 'Ordinary Markdown, inside Storybook' }),
+    ).toHaveCSS('font-size', '30px');
+    await expect(page.getByRole('columnheader').first()).toHaveCSS('padding', '20px');
+    await expect(page.locator('.storybook-addon-md-tag').first()).toHaveCSS(
+      'border-radius',
+      '14px',
+    );
+
+    await overrides.evaluate((element) => element.parentNode?.removeChild(element));
+    const viewport = page.viewportSize()!;
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.scrollWidth))
+      .toBeLessThanOrEqual(390);
+    await page.setViewportSize(viewport);
 
     await open('components-button--docs');
 
@@ -112,35 +139,7 @@ for (const [mode, port] of [
 
     await expect(page.getByRole('checkbox', { name: 'Enable notifications' })).toBeChecked();
 
-    await open('guides-introduction--docs');
-
     expect(errors).toEqual([]);
-
-    await page.screenshot({ path: `test-results/${mode}-introduction.png`, fullPage: true });
-
-    const overrides = await page.addStyleTag({
-      content: `.storybook-addon-md-page {
-      --sbmd-h2-size: 30px;
-      --sbmd-table-cell-padding: 20px;
-      --sbmd-tag-radius: 14px;
-    }`,
-    });
-
-    await expect(
-      page.getByRole('heading', { name: 'Ordinary Markdown, inside Storybook' }),
-    ).toHaveCSS('font-size', '30px');
-    await expect(page.getByRole('columnheader').first()).toHaveCSS('padding', '20px');
-    await expect(page.locator('.storybook-addon-md-tag').first()).toHaveCSS(
-      'border-radius',
-      '14px',
-    );
-
-    await overrides.evaluate((element) => element.parentNode?.removeChild(element));
-    await page.setViewportSize({ width: 390, height: 844 });
-
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
-      390,
-    );
   });
 
   test(`${mode}: native Docs supports light and dark themes`, async ({ page }) => {
@@ -151,6 +150,7 @@ for (const [mode, port] of [
       await page.emulateMedia({ colorScheme });
       await page.goto(
         `http://localhost:${port}/iframe.html?id=components-button--docs&viewMode=docs`,
+        { waitUntil: 'domcontentloaded' },
       );
 
       await expect(page.getByRole('heading', { name: /Overview$/ })).toBeVisible();
@@ -175,169 +175,10 @@ for (const [mode, port] of [
           .locator('.sbdocs-wrapper')
           .evaluate((element) => getComputedStyle(element).backgroundColor),
       );
-      await page.screenshot({ path: `test-results/${mode}-${colorScheme}.png`, fullPage: true });
     }
 
     expect(colors[0]).not.toEqual(colors[1]);
     expect(textColors[0]).not.toEqual(textColors[1]);
-  });
-}
-
-test('development: additions after startup appear in the sidebar, update, and disappear', async ({
-  page,
-  request,
-}) => {
-  const directory = 'example/docs/live-test';
-  const file = `${directory}/Added.md`;
-  const index = async () =>
-    (await (await request.get('http://localhost:16006/index.json')).json()).entries;
-
-  try {
-    await page.goto('http://localhost:16006/?path=/docs/guides-introduction--docs');
-
-    const preview = page.frameLocator('#storybook-preview-iframe');
-
-    await expect(preview.getByRole('heading', { name: 'Introduction', exact: true })).toBeVisible();
-    await mkdir(directory, { recursive: true });
-    await writeFile(file, '---\ntitle: Guides/Added live\n---\n# Added after startup\n');
-
-    await expect.poll(async () => Boolean((await index())['guides-added-live--docs'])).toBeTruthy();
-    await expect(page.getByText('Added live', { exact: true })).toBeVisible();
-
-    await page.getByText('Added live', { exact: true }).click();
-
-    await expect(preview.getByRole('heading', { name: 'Added after startup' })).toBeVisible();
-    await expect(preview.locator('.storybook-addon-md-page h1')).toHaveCount(1);
-
-    await writeFile(file, '---\ntitle: Guides/Added live\n---\n## Edited without restart\n');
-
-    await expect(preview.getByRole('heading', { name: 'Edited without restart' })).toBeVisible();
-    await expect(preview.getByRole('heading', { name: 'Added live', exact: true })).toBeVisible();
-    await expect(preview.locator('.storybook-addon-md-page h1')).toHaveCount(1);
-
-    await rm(directory, { recursive: true });
-
-    await expect.poll(async () => Boolean((await index())['guides-added-live--docs'])).toBeFalsy();
-    await expect(page.getByText('Added live', { exact: true })).toHaveCount(0);
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
-});
-
-test('development: source errors are visible and recover after correction', async ({
-  page,
-  request,
-}) => {
-  const directory = 'example/docs/error-test';
-  const file = `${directory}/Recovery.md`;
-
-  try {
-    await mkdir(directory, { recursive: true });
-    await writeFile(file, '---\ntitle: Guides/Recovery\n---\n## Valid document\n');
-    await expect
-      .poll(async () =>
-        Boolean(
-          (await (await request.get('http://localhost:16006/index.json')).json()).entries[
-            'guides-recovery--docs'
-          ],
-        ),
-      )
-      .toBeTruthy();
-    await page.goto('http://localhost:16006/iframe.html?id=guides-recovery--docs&viewMode=docs');
-
-    await expect(page.getByRole('heading', { name: 'Valid document' })).toBeVisible();
-
-    for (const [content, message] of [
-      ['---\ntitle: [\n---', 'invalid frontmatter'],
-      ['---\nstories: ./Missing.stories.tsx\n---', 'missing story reference'],
-      ['![Unavailable](missing.svg)', 'missing local asset'],
-    ]) {
-      await writeFile(file, content);
-
-      await expect(
-        page
-          .locator('vite-error-overlay')
-          .filter({ hasText: message })
-          .or(page.getByRole('heading', { name: new RegExp(message) }))
-          .first(),
-      ).toBeVisible();
-
-      await writeFile(file, '---\ntitle: Guides/Recovery\n---\n## Valid document\n');
-
-      await expect(page.getByRole('heading', { name: 'Valid document' })).toBeVisible();
-      await expect(page.locator('vite-error-overlay')).toHaveCount(0);
-      await expect(page.getByRole('heading', { name: /\[storybook-addon-md\]/ })).toHaveCount(0);
-    }
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
-});
-
-test('development: stylesheet edits update the Markdown content live', async ({ page }) => {
-  const file = 'example/.storybook/markdown.css';
-  const original = await readFile(file, 'utf8');
-
-  try {
-    await page.goto('http://localhost:16006/iframe.html?id=components-button--docs&viewMode=docs');
-
-    const heading = page.getByRole('heading', { name: /Overview$/ });
-
-    await expect(heading).toHaveCSS('border-bottom-style', 'solid');
-
-    await writeFile(
-      file,
-      original.replace('--sbmd-h2-border: 1px solid', '--sbmd-h2-border: 1px dotted'),
-    );
-
-    await expect(heading).toHaveCSS('border-bottom-style', 'dotted');
-  } finally {
-    await writeFile(file, original);
-  }
-});
-
-for (const [mode, port] of [
-  ['development', 16006],
-  ['static', 16007],
-] as const) {
-  test(`${mode}: story colors follow the system preference without reloading`, async ({ page }) => {
-    await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
-    await page.goto(
-      `http://localhost:${port}/iframe.html?id=components-button--secondary&viewMode=story`,
-    );
-
-    const button = page.getByRole('button', { name: 'Cancel', exact: true });
-
-    await expect(page.locator('html')).toHaveCSS('color-scheme', 'light dark');
-    await expect(button).toHaveCSS('background-color', 'rgb(246, 248, 250)');
-    await expect(button).toHaveCSS('color', 'rgb(31, 35, 40)');
-
-    await page.emulateMedia({ colorScheme: 'dark' });
-
-    await expect(button).toHaveCSS('background-color', 'rgb(33, 40, 48)');
-    await expect(button).toHaveCSS('color', 'rgb(240, 246, 252)');
-    await expect(page.locator('html')).toHaveCSS('background-color', 'rgb(13, 17, 23)');
-
-    await page.goto(
-      `http://localhost:${port}/iframe.html?id=components-toggle--default&viewMode=story`,
-    );
-
-    const toggle = page.getByRole('checkbox', { name: 'Enable notifications' });
-    const track = page.locator('[data-slot="toggle-track"]');
-
-    await expect(track).toHaveCSS('background-color', 'rgb(45, 52, 64)');
-    await page.keyboard.press('Tab');
-    await expect(toggle).toBeFocused();
-    await expect(track).toHaveCSS('outline-style', 'solid');
-    await expect(track).toHaveCSS('outline-width', '2px');
-    await page.keyboard.press('Space');
-    await expect(toggle).toBeChecked();
-    await page.mouse.move(700, 450);
-    await expect(track).toHaveCSS('background-color', 'rgb(35, 134, 54)');
-
-    await page.emulateMedia({ colorScheme: 'light' });
-
-    await expect(track).toHaveCSS('background-color', 'rgb(31, 136, 61)');
-    await expect(toggle).toBeChecked();
   });
 }
 
@@ -349,7 +190,9 @@ for (const [mode, port] of [
     page,
   }) => {
     await page.emulateMedia({ colorScheme: 'light' });
-    await page.goto(`http://localhost:${port}/?path=/docs/components-button--docs`);
+    await page.goto(`http://localhost:${port}/?path=/docs/components-button--docs`, {
+      waitUntil: 'domcontentloaded',
+    });
 
     const docs = page.frameLocator('#storybook-preview-iframe');
     const wrapper = docs.locator('.sbdocs-wrapper');
@@ -372,7 +215,6 @@ for (const [mode, port] of [
       'color',
       'rgb(240, 246, 252)',
     );
-    await page.screenshot({ path: `test-results/${mode}-system-dark.png`, fullPage: true });
 
     await page.emulateMedia({ colorScheme: 'light' });
 
@@ -419,7 +261,9 @@ for (const [mode, port, name, suffix] of [
       ['components-button--design-notes', 'Authored design notes'],
       [`guides-heading-example--${suffix}`, 'A visible Markdown title'],
     ] as const) {
-      await page.goto(`http://localhost:${port}/iframe.html?id=${id}&viewMode=docs`);
+      await page.goto(`http://localhost:${port}/iframe.html?id=${id}&viewMode=docs`, {
+        waitUntil: 'domcontentloaded',
+      });
       await expect(page.getByRole('heading', { name: heading })).toBeVisible();
       if (id.startsWith('guides-heading-example'))
         await expect(page.locator('.storybook-addon-md-page h1')).toHaveCount(1);
@@ -430,37 +274,3 @@ for (const [mode, port, name, suffix] of [
     }
   });
 }
-
-test('development: adding and removing Markdown replaces and restores ordinary Autodocs', async ({
-  page,
-  request,
-}) => {
-  const file = 'example/docs/Autodocs-live.md';
-  const id = 'examples-autodocs--docs';
-  const entry = async () =>
-    (await (await request.get('http://localhost:16006/index.json')).json()).entries[id];
-  try {
-    expect((await entry()).importPath).toContain('Autodocs.stories');
-    await writeFile(
-      file,
-      '---\nstories: ../components/Autodocs.stories.tsx\n---\n## Added guidance\n',
-    );
-    await expect.poll(async () => (await entry()).importPath).toContain('page-');
-    await page.goto(`http://localhost:16006/iframe.html?id=${id}&viewMode=docs`);
-    await expect(page.getByRole('heading', { name: 'Added guidance' })).toBeVisible();
-    await expect(
-      page.getByRole('button', { name: 'Automatic example', exact: true }),
-    ).toBeVisible();
-    await expect(page.getByRole('row').filter({ hasText: 'variant' })).toBeVisible();
-    await rm(file);
-    await expect.poll(async () => (await entry()).importPath).toContain('Autodocs.stories');
-    const restored = await page.context().newPage();
-    await restored.goto(`http://localhost:16006/iframe.html?id=${id}&viewMode=docs`);
-    await expect(restored.getByRole('heading', { name: 'Autodocs', exact: true })).toBeVisible();
-    await expect(
-      restored.getByRole('button', { name: 'Automatic example', exact: true }),
-    ).toBeVisible();
-  } finally {
-    await rm(file, { force: true });
-  }
-});

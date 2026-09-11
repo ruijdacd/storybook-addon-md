@@ -12,7 +12,15 @@ const project = await mkdtemp(path.join(os.tmpdir(), 'storybook-md-consumer-'));
 let server: ChildProcess | undefined;
 let browser: Browser | undefined;
 let output = '';
-const run = (args: string[], cwd: string) => exec('nub', args, { cwd, maxBuffer: 5 * 1024 * 1024 });
+const run = async (args: string[], cwd: string) => {
+  const label = `Consumer: nub ${args.join(' ')}`;
+  console.time(label);
+  try {
+    return await exec('nub', args, { cwd, maxBuffer: 5 * 1024 * 1024 });
+  } finally {
+    console.timeEnd(label);
+  }
+};
 
 try {
   const { stdout } = await run(['pack', '--json', '--pack-destination', project], process.cwd());
@@ -198,7 +206,7 @@ try {
       { timeout: 120000 },
     )
     .toBeTruthy();
-  browser = await chromium.launch();
+  browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL });
 
   const page = await browser.newPage();
 
@@ -209,12 +217,12 @@ try {
     page
       .frameLocator('#storybook-preview-iframe')
       .getByRole('button', { name: 'Continue', exact: true }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 15000 });
 
   await page.goto('http://localhost:16008/?path=/docs/guides-authored--reference');
   await expect(
     page.frameLocator('#storybook-preview-iframe').getByRole('heading', { name: 'Authored MDX' }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 15000 });
 
   await mkdir(path.join(project, 'empty-docs'));
   await writeFile(

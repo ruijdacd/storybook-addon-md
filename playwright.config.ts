@@ -1,13 +1,40 @@
 import { defineConfig } from '@playwright/test';
+import { availableParallelism, totalmem } from 'node:os';
 
 export default defineConfig({
   testDir: './test/browser',
   testMatch: '**/*.spec.ts',
-  workers: 1,
+  workers: 2,
+  reporter: [['list'], ['json', { outputFile: 'playwright-report/results.json' }]],
+  metadata: {
+    node: process.version,
+    platform: process.platform,
+    cpus: availableParallelism(),
+    memoryGiB: Math.round(totalmem() / 1024 ** 3),
+    channel: process.env.PLAYWRIGHT_CHANNEL || 'chromium-headless-shell',
+  },
   timeout: 60000,
   globalTimeout: 180000,
   expect: { timeout: 15000 },
-  use: { browserName: 'chromium', trace: 'retain-on-failure' },
+  use: {
+    browserName: 'chromium',
+    channel: process.env.PLAYWRIGHT_CHANNEL,
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
+  },
+  projects: [
+    {
+      name: 'rendering',
+      testIgnore: '**/watching.spec.ts',
+      fullyParallel: true,
+    },
+    {
+      name: 'watching',
+      testMatch: '**/watching.spec.ts',
+      dependencies: ['rendering'],
+      workers: 1,
+    },
+  ],
   webServer: [
     {
       command:
@@ -17,7 +44,8 @@ export default defineConfig({
       timeout: 120000,
     },
     {
-      command: 'nub run build-storybook && node --experimental-strip-types test/serve-static.ts',
+      command:
+        'node --experimental-strip-types test/build-storybooks.ts && node --experimental-strip-types test/serve-static.ts',
       url: 'http://localhost:16007/index.json',
       timeout: 120000,
     },
@@ -29,8 +57,7 @@ export default defineConfig({
       timeout: 120000,
     },
     {
-      command:
-        'nub run build-storybook:mcp && node --experimental-strip-types test/serve-static.ts storybook-static-mcp 16010',
+      command: 'node --experimental-strip-types test/serve-static.ts storybook-static-mcp 16010',
       url: 'http://localhost:16010/index.json',
       timeout: 120000,
     },

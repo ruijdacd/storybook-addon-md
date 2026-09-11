@@ -7,6 +7,8 @@ import { Documentation } from '../../src/runtime.js';
 import type { LayoutProps, MarkdownDocument } from '../../src/runtime.js';
 import '../../src/styles.css';
 
+Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+
 const document: MarkdownDocument = {
   source: 'Guide.md',
   metadata: { tags: ['Guide', 'Stable'] },

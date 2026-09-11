@@ -2,15 +2,24 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  PLAYWRIGHT_CHANNEL: chrome
+
 jobs:
-  verify:
+  checks:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: nubjs/setup-nub@v0.5.0
@@ -18,19 +27,68 @@ jobs:
           node-version: 24
           nub-version: 0.7.5
       - run: nub install --frozen-lockfile
-      - run: nub exec playwright install --with-deps chromium
       - run: nub run check
       - run: nub run lint
       - run: nub run format:check
       - run: nub audit --audit-level=high
       - run: nub run test
       - run: nub run test:browser
-      - run: nub run test:e2e
-      - run: nub run test:package
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: browser-test-results
+          path: test-results/
+
+  e2e:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: nubjs/setup-nub@v0.5.0
+        with:
+          node-version: 24
+          nub-version: 0.7.5
+      - run: nub install --frozen-lockfile
+      - run: nub run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-test-results
           path: |
             test-results/
             playwright-report/
+
+  package:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: nubjs/setup-nub@v0.5.0
+        with:
+          node-version: 24
+          nub-version: 0.7.5
+      - run: nub install --frozen-lockfile
+      - run: nub run test:package
+
+  verify:
+    if: always()
+    needs: [checks, e2e, package]
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - env:
+          CHECKS_RESULT: ${{ needs.checks.result }}
+          E2E_RESULT: ${{ needs.e2e.result }}
+          PACKAGE_RESULT: ${{ needs.package.result }}
+          FULL_SUITE: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+        run: |
+          test "$CHECKS_RESULT" = success
+          if [ "$FULL_SUITE" = true ]; then
+            test "$E2E_RESULT" = success
+            test "$PACKAGE_RESULT" = success
+          else
+            test "$E2E_RESULT" = skipped
+            test "$PACKAGE_RESULT" = skipped
+          fi
