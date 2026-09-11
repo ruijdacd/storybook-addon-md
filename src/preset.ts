@@ -10,7 +10,10 @@ import { updateManifests } from './manifest.js';
 import { generate, writeChanged } from './generator.js';
 import { fail, slash } from './content.js';
 
-type PresetOptions = MarkdownOptions & { configDir: string };
+type PresetOptions = MarkdownOptions & {
+  configDir: string;
+  presets?: { apply: (name: 'docs') => Promise<{ defaultName?: string }> };
+};
 
 type StoryEntry = string | { directory: string; files?: string; titlePrefix?: string };
 
@@ -23,6 +26,16 @@ function settings(options: PresetOptions) {
   const configDir = path.resolve(options.configDir);
   const root = path.resolve(configDir, options.root ?? '..');
   const generatedDir = options.generatedDir ?? 'storybook-markdown-generated';
+
+  if (
+    options.tagFields !== undefined &&
+    (!Array.isArray(options.tagFields) ||
+      options.tagFields.some(
+        (field) => typeof field !== 'string' || !/^[a-z][a-z0-9_-]*$/.test(field),
+      ))
+  ) {
+    throw fail(configDir, 'tagFields must be an array of lowercase frontmatter field names');
+  }
 
   if ('exclude' in options) {
     throw fail(
@@ -49,6 +62,7 @@ function settings(options: PresetOptions) {
       createHash('sha256').update(configDir).digest('hex').slice(0, 12),
     ),
     patterns: options.patterns,
+    tagFields: options.tagFields,
     stylesheet: options.stylesheet ? path.resolve(root, options.stylesheet) : undefined,
     presentation: options.presentation ? path.resolve(root, options.presentation) : undefined,
   };
@@ -58,7 +72,8 @@ export async function stories(existing: StoryEntry[] = [], options: PresetOption
   const key = path.resolve(options.configDir);
 
   if (!sessions.has(key)) {
-    const config = settings(options);
+    const docs = await options.presets?.apply('docs');
+    const config = { ...settings(options), docsName: docs?.defaultName ?? 'Docs' };
 
     sessions.set(key, { config, ready: generate(config) });
   }

@@ -61,7 +61,7 @@ for (const [mode, port] of [
     expect(response.ok()).toBeTruthy();
     expect(await response.text()).toContain('Shared interaction guidance');
 
-    await open('components-button--markdown');
+    await open('components-button--docs');
 
     await expect(page.getByRole('heading', { name: /Overview$/ })).toBeVisible();
     await expect(page.locator('[data-status="Stable"]')).toBeVisible();
@@ -102,7 +102,7 @@ for (const [mode, port] of [
     await expect(page.getByText('<Button variant="primary" />', { exact: false })).toBeVisible();
 
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
-    await open('components-toggle--markdown');
+    await open('components-toggle--docs');
 
     await expect(page.getByRole('heading', { name: 'Shared interaction guidance' })).toBeVisible();
 
@@ -150,7 +150,7 @@ for (const [mode, port] of [
     for (const colorScheme of ['light', 'dark'] as const) {
       await page.emulateMedia({ colorScheme });
       await page.goto(
-        `http://localhost:${port}/iframe.html?id=components-button--markdown&viewMode=docs`,
+        `http://localhost:${port}/iframe.html?id=components-button--docs&viewMode=docs`,
       );
 
       await expect(page.getByRole('heading', { name: /Overview$/ })).toBeVisible();
@@ -199,7 +199,7 @@ test('development: additions after startup appear in the sidebar, update, and di
 
     await expect(preview.getByRole('heading', { name: 'Introduction', exact: true })).toBeVisible();
     await mkdir(directory, { recursive: true });
-    await writeFile(file, '---\ntitle: Guides/Added live\n---\n## Added after startup\n');
+    await writeFile(file, '---\ntitle: Guides/Added live\n---\n# Added after startup\n');
 
     await expect.poll(async () => Boolean((await index())['guides-added-live--docs'])).toBeTruthy();
     await expect(page.getByText('Added live', { exact: true })).toBeVisible();
@@ -207,10 +207,13 @@ test('development: additions after startup appear in the sidebar, update, and di
     await page.getByText('Added live', { exact: true }).click();
 
     await expect(preview.getByRole('heading', { name: 'Added after startup' })).toBeVisible();
+    await expect(preview.locator('.storybook-addon-md-page h1')).toHaveCount(1);
 
     await writeFile(file, '---\ntitle: Guides/Added live\n---\n## Edited without restart\n');
 
     await expect(preview.getByRole('heading', { name: 'Edited without restart' })).toBeVisible();
+    await expect(preview.getByRole('heading', { name: 'Added live', exact: true })).toBeVisible();
+    await expect(preview.locator('.storybook-addon-md-page h1')).toHaveCount(1);
 
     await rm(directory, { recursive: true });
 
@@ -275,9 +278,7 @@ test('development: stylesheet edits update the Markdown content live', async ({ 
   const original = await readFile(file, 'utf8');
 
   try {
-    await page.goto(
-      'http://localhost:16006/iframe.html?id=components-button--markdown&viewMode=docs',
-    );
+    await page.goto('http://localhost:16006/iframe.html?id=components-button--docs&viewMode=docs');
 
     const heading = page.getByRole('heading', { name: /Overview$/ });
 
@@ -348,7 +349,7 @@ for (const [mode, port] of [
     page,
   }) => {
     await page.emulateMedia({ colorScheme: 'light' });
-    await page.goto(`http://localhost:${port}/?path=/docs/components-button--markdown`);
+    await page.goto(`http://localhost:${port}/?path=/docs/components-button--docs`);
 
     const docs = page.frameLocator('#storybook-preview-iframe');
     const wrapper = docs.locator('.sbdocs-wrapper');
@@ -385,3 +386,80 @@ for (const [mode, port] of [
     expect(await wrapper.evaluate(() => performance.timeOrigin)).toBe(docsOrigin);
   });
 }
+
+for (const [mode, port, name, suffix] of [
+  ['development', 16006, 'Docs', 'docs'],
+  ['static', 16007, 'Docs', 'docs'],
+  ['development custom name', 16009, 'Reference', 'reference'],
+  ['static custom name', 16010, 'Reference', 'reference'],
+] as const) {
+  test(`${mode}: Markdown replaces Autodocs while ordinary Autodocs and authored MDX remain`, async ({
+    request,
+    page,
+  }) => {
+    const {
+      entries,
+    }: {
+      entries: Record<
+        string,
+        { id: string; name: string; type: string; title: string; importPath: string }
+      >;
+    } = await (await request.get(`http://localhost:${port}/index.json`)).json();
+    const componentDocs = Object.values(entries).filter(
+      (entry) => entry.type === 'docs' && entry.title === 'Components/Button',
+    ) as { id: string; name: string }[];
+    expect(componentDocs.map((entry) => entry.name).sort()).toEqual([name, 'Design notes'].sort());
+    expect(entries[`components-button--${suffix}`].importPath).toContain('page-');
+    expect(entries[`examples-autodocs--${suffix}`].importPath).toContain('Autodocs.stories');
+    expect(entries[`guides-authored--${suffix}`].importPath).toContain('Authored.mdx');
+    for (const [id, heading] of [
+      [`components-button--${suffix}`, /Overview$/],
+      [`examples-autodocs--${suffix}`, 'Autodocs'],
+      [`guides-authored--${suffix}`, 'Authored MDX'],
+      ['components-button--design-notes', 'Authored design notes'],
+      [`guides-heading-example--${suffix}`, 'A visible Markdown title'],
+    ] as const) {
+      await page.goto(`http://localhost:${port}/iframe.html?id=${id}&viewMode=docs`);
+      await expect(page.getByRole('heading', { name: heading })).toBeVisible();
+      if (id.startsWith('guides-heading-example'))
+        await expect(page.locator('.storybook-addon-md-page h1')).toHaveCount(1);
+      if (id === `components-button--${suffix}`) {
+        await expect(page.getByRole('row').filter({ hasText: 'variant' })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Continue', exact: true })).toBeVisible();
+      }
+    }
+  });
+}
+
+test('development: adding and removing Markdown replaces and restores ordinary Autodocs', async ({
+  page,
+  request,
+}) => {
+  const file = 'example/docs/Autodocs-live.md';
+  const id = 'examples-autodocs--docs';
+  const entry = async () =>
+    (await (await request.get('http://localhost:16006/index.json')).json()).entries[id];
+  try {
+    expect((await entry()).importPath).toContain('Autodocs.stories');
+    await writeFile(
+      file,
+      '---\nstories: ../components/Autodocs.stories.tsx\n---\n## Added guidance\n',
+    );
+    await expect.poll(async () => (await entry()).importPath).toContain('page-');
+    await page.goto(`http://localhost:16006/iframe.html?id=${id}&viewMode=docs`);
+    await expect(page.getByRole('heading', { name: 'Added guidance' })).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Automatic example', exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole('row').filter({ hasText: 'variant' })).toBeVisible();
+    await rm(file);
+    await expect.poll(async () => (await entry()).importPath).toContain('Autodocs.stories');
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Autodocs', exact: true })).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Automatic example', exact: true }),
+    ).toBeVisible();
+  } finally {
+    await rm(file, { force: true });
+  }
+});
