@@ -110,14 +110,17 @@ test('development: stylesheet edits update the Markdown content live', async ({ 
 
     const heading = page.getByRole('heading', { name: /Overview$/ });
 
-    await expect(heading).toHaveCSS('border-bottom-style', 'solid');
+    await expect(heading).not.toHaveCSS('border-bottom-color', 'rgb(1, 2, 3)');
 
     await writeFile(
       file,
-      original.replace('--sbmd-h2-border: 1px solid', '--sbmd-h2-border: 1px dotted'),
+      original.replace(
+        '--sbmd-border-color: var(--color-control-border)',
+        '--sbmd-border-color: rgb(1, 2, 3)',
+      ),
     );
 
-    await expect(heading).toHaveCSS('border-bottom-style', 'dotted');
+    await expect(heading).toHaveCSS('border-bottom-color', 'rgb(1, 2, 3)');
   } finally {
     await writeFile(file, original);
   }

@@ -340,14 +340,9 @@ test('CSS variables control callout colors, borders, spacing, and typography', a
   container.style.cssText = [
     '--sbmd-callout-note-color: rgb(1, 2, 3)',
     '--sbmd-callout-caution-color: rgb(4, 5, 6)',
-    '--sbmd-callout-background: rgb(7, 8, 9)',
-    '--sbmd-callout-color: rgb(10, 11, 12)',
     '--sbmd-callout-padding: 17px',
-    '--sbmd-callout-margin: 19px 0',
-    '--sbmd-callout-radius: 5px',
+    '--sbmd-block-spacing: 19px',
     '--sbmd-callout-label-weight: 900',
-    '--sbmd-callout-label-size: 21px',
-    '--sbmd-callout-label-margin: 13px',
   ].join('; ');
   await render(themes.light, [{ ...document, markdown: callouts }]);
 
@@ -359,20 +354,50 @@ test('CSS variables control callout colors, borders, spacing, and typography', a
   expect(getComputedStyle(note).borderInlineStartColor).toBe('rgb(1, 2, 3)');
   expect(getComputedStyle(caution).borderInlineStartColor).toBe('rgb(4, 5, 6)');
   expect(getComputedStyle(tipLabel).color).not.toBe('rgb(1, 2, 3)');
-  expect(getComputedStyle(note).backgroundColor).toBe('rgb(7, 8, 9)');
-  expect(getComputedStyle(note.querySelector('p:not([class])')!).color).toBe('rgb(10, 11, 12)');
   expect(getComputedStyle(note).padding).toBe('17px');
   expect(getComputedStyle(note).margin).toBe('19px 0px');
-  expect(getComputedStyle(note).borderRadius).toBe('5px');
   expect(getComputedStyle(label).fontWeight).toBe('900');
-  expect(getComputedStyle(label).fontSize).toBe('21px');
-  expect(getComputedStyle(label).marginBottom).toBe('13px');
   expect(getComputedStyle(label.nextElementSibling!).marginTop).toBe('0px');
   expect(getComputedStyle(note.lastElementChild!).marginBottom).toBe('0px');
 
-  container.style.cssText = '--sbmd-callout-border: 2px dashed rgb(20, 21, 22)';
+  container.style.cssText = '--sbmd-quote-border: 2px dashed rgb(20, 21, 22)';
   expect(getComputedStyle(caution).borderInlineStartStyle).toBe('dashed');
-  expect(getComputedStyle(caution).borderInlineStartColor).toBe('rgb(20, 21, 22)');
+  expect(getComputedStyle(caution).borderInlineStartWidth).toBe('2px');
+  expect(getComputedStyle(caution).borderInlineStartColor).not.toBe('rgb(20, 21, 22)');
+  expect(getComputedStyle(container.querySelector('blockquote')!).borderInlineStartColor).toBe(
+    'rgb(20, 21, 22)',
+  );
+});
+
+test('shared tokens drive borders, spacing, radii, and the title size', async () => {
+  container.style.cssText = [
+    '--sbmd-border-color: rgb(7, 8, 9)',
+    '--sbmd-block-spacing: 23px',
+    '--sbmd-heading-spacing: 29px',
+    '--sbmd-code-radius: 11px',
+    '--sbmd-h1-size: 41px',
+  ].join('; ');
+  await render(themes.light, [
+    { ...document, markdown: `${document.markdown}\n\n### Details\n\nUse \`code\` here.\n\n---` },
+  ]);
+
+  const h2 = container.querySelector('h2')!;
+  const title = container.querySelector('.storybook-addon-md-title h1')!;
+  const code = container.querySelector(':not(pre) > code')!;
+
+  expect(getComputedStyle(h2).borderBottomColor).toBe('rgb(7, 8, 9)');
+  expect(getComputedStyle(container.querySelector('td')!).borderTopColor).toBe('rgb(7, 8, 9)');
+  expect(getComputedStyle(code).borderTopColor).toBe('rgb(7, 8, 9)');
+  expect(getComputedStyle(container.querySelector('hr')!).backgroundColor).toBe('rgb(7, 8, 9)');
+  expect(getComputedStyle(container.querySelector('blockquote')!).borderInlineStartColor).toBe(
+    'rgb(7, 8, 9)',
+  );
+  expect(getComputedStyle(container.querySelector('table')!).marginTop).toBe('23px');
+  expect(getComputedStyle(title).marginBottom).toBe('23px');
+  expect(getComputedStyle(container.querySelector('h3')!).marginTop).toBe('29px');
+  expect(getComputedStyle(container.querySelector('hr')!).marginTop).toBe('29px');
+  expect(getComputedStyle(code).borderRadius).toBe('11px');
+  expect(getComputedStyle(title).fontSize).toBe('41px');
 });
 
 test('custom renderers receive callouts as GitHub alert syntax', async () => {

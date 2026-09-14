@@ -6,10 +6,9 @@ Set these variables on `.storybook-addon-md-page` in the file configured by `sty
 .storybook-addon-md-page {
   --sbmd-font-size: 1rem;
   --sbmd-monospace-font-family: 'JetBrains Mono', monospace;
-  --sbmd-h2-size: 1.625rem;
-  --sbmd-paragraph-spacing: 1.25rem;
+  --sbmd-border-color: #d1d9e0;
+  --sbmd-block-spacing: 1.25rem;
   --sbmd-quote-border: 0.1875rem solid currentColor;
-  --sbmd-quote-radius: 0.5rem;
   --sbmd-table-cell-padding: 0.75rem 1rem;
   --sbmd-tag-radius: 0.375rem;
 }
@@ -17,111 +16,62 @@ Set these variables on `.storybook-addon-md-page` in the file configured by `sty
 
 Default lengths use `rem`, preserving their original sizes at a 16px root font size and scaling with the document root font size. Set `--sbmd-monospace-font-family` to customize inline code and fenced code blocks; it defaults to Storybook’s monospace theme font.
 
-Variables accept normal CSS values for the property listed below, including `clamp()`, `calc()`, and references to your own theme variables. Border variables accept full border shorthands. Heading margins set space above the heading; title margin sets space below it. Paragraph spacing also applies to lists. Tag margin sets space below the chip list.
+Variables accept normal CSS values for the property listed below, including `clamp()`, `calc()`, and references to your own theme variables. Border variables accept full border shorthands.
+
+Three shared tokens cover most of the page. `--sbmd-border-color` colors heading rules, table cells, inline code, horizontal rules, and the default quote border. `--sbmd-block-spacing` sets the vertical rhythm of paragraphs, lists, quotes, callouts, tables, the title, and the tag list. `--sbmd-heading-spacing` sets the space above headings and around horizontal rules.
 
 Use your theme selector to override colors in dark mode. The [complete example](https://github.com/ruijdacd/storybook-addon-md/blob/main/example/.storybook/markdown.css) maps the addon variables to Tailwind v4 theme variables. Its `light-dark()` colors follow the system preference.
 
-| Variable                          | CSS property                  |
-| --------------------------------- | ----------------------------- |
-| `--sbmd-background`               | `background`                  |
-| `--sbmd-callout-background`       | `background`                  |
-| `--sbmd-callout-border`           | `border-inline-start`         |
-| `--sbmd-callout-caution-color`    | Caution accent color          |
-| `--sbmd-callout-color`            | `color`                       |
-| `--sbmd-callout-important-color`  | Important accent color        |
-| `--sbmd-callout-label-color`      | `color`                       |
-| `--sbmd-callout-label-margin`     | `margin-bottom`               |
-| `--sbmd-callout-label-size`       | `font-size`                   |
-| `--sbmd-callout-label-weight`     | `font-weight`                 |
-| `--sbmd-callout-margin`           | `margin`                      |
-| `--sbmd-callout-note-color`       | Note accent color             |
-| `--sbmd-callout-padding`          | `padding`                     |
-| `--sbmd-callout-radius`           | `border-radius`               |
-| `--sbmd-callout-tip-color`        | Tip accent color              |
-| `--sbmd-callout-warning-color`    | Warning accent color          |
-| `--sbmd-checkbox-color`           | `accent-color`                |
-| `--sbmd-checkbox-gap`             | `margin-inline-end`           |
-| `--sbmd-code-border`              | `border`                      |
-| `--sbmd-code-padding`             | `padding`                     |
-| `--sbmd-code-radius`              | `border-radius`               |
-| `--sbmd-color`                    | `color`                       |
-| `--sbmd-font-family`              | `font-family`                 |
-| `--sbmd-font-size`                | `font-size`                   |
-| `--sbmd-h1-size`                  | `font-size`                   |
-| `--sbmd-h2-border`                | `border-bottom`               |
-| `--sbmd-h2-letter-spacing`        | `letter-spacing`              |
-| `--sbmd-h2-margin`                | `margin-top`                  |
-| `--sbmd-h2-padding`               | `padding-bottom`              |
-| `--sbmd-h2-size`                  | `font-size`                   |
-| `--sbmd-h3-letter-spacing`        | `letter-spacing`              |
-| `--sbmd-h3-margin`                | `margin-top`                  |
-| `--sbmd-h3-size`                  | `font-size`                   |
-| `--sbmd-h4-size`                  | `font-size`                   |
-| `--sbmd-h5-size`                  | `font-size`                   |
-| `--sbmd-h6-size`                  | `font-size`                   |
-| `--sbmd-heading-color`            | `color`                       |
-| `--sbmd-heading-font-family`      | `font-family`                 |
-| `--sbmd-heading-line-height`      | `line-height`                 |
-| `--sbmd-heading-weight`           | `font-weight`                 |
-| `--sbmd-image-border`             | `border`                      |
-| `--sbmd-image-margin`             | `margin-block`                |
-| `--sbmd-image-radius`             | `border-radius`               |
-| `--sbmd-inline-code-background`   | `background`                  |
-| `--sbmd-inline-code-border`       | `border`                      |
-| `--sbmd-inline-code-color`        | `color`                       |
-| `--sbmd-inline-code-padding`      | `padding`                     |
-| `--sbmd-inline-code-radius`       | `border-radius`               |
-| `--sbmd-inline-code-size`         | `font-size`                   |
-| `--sbmd-line-height`              | `line-height`                 |
-| `--sbmd-link-color`               | `color`                       |
-| `--sbmd-link-decoration`          | `text-decoration`             |
-| `--sbmd-link-focus-offset`        | `outline-offset`              |
-| `--sbmd-link-focus-outline`       | `outline`                     |
-| `--sbmd-link-hover-thickness`     | `text-decoration-thickness`   |
-| `--sbmd-link-radius`              | `border-radius`               |
-| `--sbmd-link-thickness`           | `text-decoration-thickness`   |
-| `--sbmd-link-underline-offset`    | `text-underline-offset`       |
-| `--sbmd-list-item-spacing`        | `margin-top`                  |
-| `--sbmd-list-marker-color`        | `color`                       |
-| `--sbmd-monospace-font-family`    | `font-family` (Markdown code) |
-| `--sbmd-max-width`                | `max-width`                   |
-| `--sbmd-page-border`              | `border`                      |
-| `--sbmd-page-padding`             | `padding`                     |
-| `--sbmd-page-radius`              | `border-radius`               |
-| `--sbmd-paragraph-spacing`        | `margin-block`                |
-| `--sbmd-quote-background`         | `background`                  |
-| `--sbmd-quote-border`             | `border-inline-start`         |
-| `--sbmd-quote-margin`             | `margin`                      |
-| `--sbmd-quote-padding`            | `padding`                     |
-| `--sbmd-quote-radius`             | `border-radius`               |
-| `--sbmd-rule-color`               | `background`                  |
-| `--sbmd-rule-height`              | `height`                      |
-| `--sbmd-rule-margin`              | `margin-block`                |
-| `--sbmd-table-align`              | `text-align`                  |
-| `--sbmd-table-background`         | `background`                  |
-| `--sbmd-table-border`             | `border`                      |
-| `--sbmd-table-cell-padding`       | `padding`                     |
-| `--sbmd-table-heading-background` | `background`                  |
-| `--sbmd-table-heading-weight`     | `font-weight`                 |
-| `--sbmd-table-margin`             | `margin-block`                |
-| `--sbmd-table-stripe-background`  | `background`                  |
-| `--sbmd-tag-background`           | `background`                  |
-| `--sbmd-tag-border`               | `border`                      |
-| `--sbmd-tag-color`                | `color`                       |
-| `--sbmd-tag-font-size`            | `font-size`                   |
-| `--sbmd-tag-font-weight`          | `font-weight`                 |
-| `--sbmd-tag-gap`                  | `gap`                         |
-| `--sbmd-tag-line-height`          | `line-height`                 |
-| `--sbmd-tag-padding`              | `padding`                     |
-| `--sbmd-tag-radius`               | `border-radius`               |
-| `--sbmd-title-letter-spacing`     | `letter-spacing`              |
-| `--sbmd-title-line-height`        | `line-height`                 |
-| `--sbmd-title-margin`             | `margin-bottom`               |
-| `--sbmd-title-size`               | `font-size`                   |
+| Variable                         | Applies to                                        |
+| -------------------------------- | ------------------------------------------------- |
+| `--sbmd-font-family`             | Page and Markdown text                            |
+| `--sbmd-font-size`               | Markdown text                                     |
+| `--sbmd-line-height`             | Markdown text                                     |
+| `--sbmd-color`                   | Page and Markdown text                            |
+| `--sbmd-monospace-font-family`   | Inline code and code blocks                       |
+| `--sbmd-border-color`            | Heading rules, tables, inline code, rules, quotes |
+| `--sbmd-block-spacing`           | Vertical margin of blocks, title, and tag list    |
+| `--sbmd-heading-spacing`         | Space above headings and around rules             |
+| `--sbmd-heading-color`           | Headings and title                                |
+| `--sbmd-heading-font-family`     | Headings and title                                |
+| `--sbmd-heading-weight`          | Headings and title                                |
+| `--sbmd-h1-size`                 | Title and `h1`                                    |
+| `--sbmd-h2-size`                 | `h2`                                              |
+| `--sbmd-h3-size`                 | `h3`                                              |
+| `--sbmd-h4-size`                 | `h4`                                              |
+| `--sbmd-h5-size`                 | `h5`                                              |
+| `--sbmd-h6-size`                 | `h6`                                              |
+| `--sbmd-link-color`              | Links                                             |
+| `--sbmd-link-decoration`         | Link `text-decoration`                            |
+| `--sbmd-list-item-spacing`       | Space between list items                          |
+| `--sbmd-quote-border`            | Start border of quotes and callouts               |
+| `--sbmd-quote-padding`           | Quote padding                                     |
+| `--sbmd-callout-padding`         | Callout padding                                   |
+| `--sbmd-callout-label-weight`    | Callout label weight                              |
+| `--sbmd-callout-note-color`      | Note accent color                                 |
+| `--sbmd-callout-tip-color`       | Tip accent color                                  |
+| `--sbmd-callout-important-color` | Important accent color                            |
+| `--sbmd-callout-warning-color`   | Warning accent color                              |
+| `--sbmd-callout-caution-color`   | Caution accent color                              |
+| `--sbmd-code-radius`             | Inline code and code block radius                 |
+| `--sbmd-code-padding`            | Code block padding                                |
+| `--sbmd-inline-code-padding`     | Inline code padding                               |
+| `--sbmd-inline-code-background`  | Inline code background                            |
+| `--sbmd-inline-code-size`        | Inline code font size                             |
+| `--sbmd-table-cell-padding`      | Table cell padding                                |
+| `--sbmd-table-stripe-background` | Even table row background                         |
+| `--sbmd-tag-color`               | Tag text                                          |
+| `--sbmd-tag-background`          | Tag background                                    |
+| `--sbmd-tag-border`              | Tag border                                        |
+| `--sbmd-tag-radius`              | Tag radius                                        |
+| `--sbmd-tag-padding`             | Tag padding                                       |
+| `--sbmd-tag-font-size`           | Tag font size                                     |
 
 Status chips have `data-status` set to the original frontmatter value. Override `--sbmd-tag-*` on selectors such as `.storybook-addon-md-tag[data-status="stable" i]` to assign a status-specific appearance.
 
-Callouts are `.storybook-addon-md-callout` elements with `data-callout` set to `note`, `tip`, `important`, `warning`, or `caution`, and a `.storybook-addon-md-callout-label` paragraph. Each type’s accent color sets the default border color and label color. Per-type accent variables default to Storybook theme colors chosen for the light or dark base. `--sbmd-callout-color` applies to text inside callouts; `--sbmd-callout-border` and `--sbmd-callout-label-color` replace the accent for every type.
+Callouts are `.storybook-addon-md-callout` elements with `data-callout` set to `note`, `tip`, `important`, `warning`, or `caution`, and a `.storybook-addon-md-callout-label` paragraph. Each type’s accent color sets the border color and label color. Per-type accent variables default to Storybook theme colors chosen for the light or dark base. Callouts share `--sbmd-quote-border` for the border width and style.
+
+Properties without a variable use ordinary CSS. The addon does not set backgrounds, radii, or borders on the page, quotes, callouts, or images, so selectors such as `.storybook-addon-md img` work at any specificity. Properties the addon does set, such as heading letter spacing or table alignment, need a selector that matches the addon’s specificity, for example `.sbdocs-content .storybook-addon-md h2`.
 
 These styles target Markdown content and its title/chips. Story canvases, props controls, and syntax-highlighting colors still use Storybook’s theme. Custom renderers can use the shared styles when they produce matching HTML elements; custom layouts own any additional structure. Internal `--sbmd-native-*` variables carry Storybook theme values and are not customization hooks.
 
@@ -144,7 +94,7 @@ Set `stylesheet: '.storybook/markdown.css'` in the addon options, then define yo
 }
 ```
 
-Variables cover typography, spacing, links, code, tables, images, and chips. They inherit from your theme container, and default text and link colors follow the active Docs theme. See [Variables](#variables) for the complete list.
+Variables cover typography, spacing, borders, links, code, tables, callouts, and chips. They inherit from your theme container, and default text and link colors follow the active Docs theme. See the [reference](#css-variable-reference) for the complete list.
 
 Use ordinary CSS for other properties. `.storybook-addon-md` wraps Markdown content, including custom renderer output; titles, props, and examples sit outside it. Other stable selectors are `.storybook-addon-md-page`, `.storybook-addon-md-title`, `.storybook-addon-md-tags`, and `.storybook-addon-md-tag`.
 
@@ -176,17 +126,16 @@ Map the accent colors to your design tokens, and adjust the shared box and label
   --sbmd-callout-warning-color: light-dark(#9a6700, #d29922);
   --sbmd-callout-caution-color: light-dark(#d1242f, #f85149);
   --sbmd-callout-padding: 0.5rem 1rem;
-  --sbmd-callout-radius: 0.375rem;
   --sbmd-callout-label-weight: 500;
 }
 ```
 
-Use `data-callout` for anything that differs per type beyond the accent color, such as a tinted background or a different border width:
+Use `data-callout` for anything that differs per type beyond the accent color, such as a tinted background or a rounded corner:
 
 ```css
 .storybook-addon-md-callout[data-callout='caution'] {
-  --sbmd-callout-background: light-dark(#ffebe9, #2d1214);
-  --sbmd-callout-border: 0.375rem solid var(--sbmd-callout-caution-color);
+  background: light-dark(#ffebe9, #2d1214);
+  border-radius: 0.375rem;
 }
 ```
 
