@@ -1,7 +1,9 @@
-import type { ComponentProps, CSSProperties, ReactNode } from 'react';
+import type { ComponentProps, CSSProperties, MouseEvent, ReactNode } from 'react';
 import { Children, cloneElement, isValidElement } from 'react';
 import type { StorybookTheme } from 'storybook/theming';
 import { useTheme } from 'storybook/theming';
+import { addons } from 'storybook/preview-api';
+import { NAVIGATE_URL } from 'storybook/internal/core-events';
 import type { MarkdownDocument, LayoutProps, Presentation } from './types.js';
 import {
   Markdown,
@@ -53,6 +55,27 @@ function Blockquote({ children, ...props }: ComponentProps<'blockquote'>) {
       {content}
     </div>
   );
+}
+
+function navigate(event: MouseEvent<HTMLDivElement>) {
+  const anchor = (event.target as Element).closest('a');
+  const href = anchor?.getAttribute('href');
+
+  if (
+    !anchor ||
+    !href?.startsWith('?path=') ||
+    !event.currentTarget.contains(anchor) ||
+    anchor.target === '_blank' ||
+    event.button !== 0 ||
+    event.altKey ||
+    event.ctrlKey ||
+    event.metaKey ||
+    event.shiftKey
+  )
+    return;
+
+  event.preventDefault();
+  addons.getChannel().emit(NAVIGATE_URL, href);
 }
 
 export function DefaultMarkdownRenderer({ markdown }: MarkdownDocument) {
@@ -182,7 +205,7 @@ export function Documentation({
         tagFields={tagFields}
       >
         {documents.map((document) => (
-          <div className="storybook-addon-md" key={document.source}>
+          <div className="storybook-addon-md" key={document.source} onClick={navigate}>
             <Renderer {...document} />
           </div>
         ))}

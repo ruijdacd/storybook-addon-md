@@ -466,3 +466,34 @@ test('custom renderers receive callouts as GitHub alert syntax', async () => {
   expect(container.querySelector('pre')?.textContent).toContain('> \\[!NOTE]\n> Additional');
   expect(container.querySelector('.storybook-addon-md-callout')).toBeNull();
 });
+
+test('Storybook path links navigate through the preview channel without reloading', async () => {
+  const { addons, mockChannel } = await import('storybook/preview-api');
+  const channel = mockChannel();
+  const emitted: unknown[][] = [];
+
+  channel.on('navigateUrl', (...args: unknown[]) => emitted.push(args));
+  addons.setChannel(channel);
+
+  await render(themes.light, [
+    {
+      source: 'Links.md',
+      metadata: {},
+      markdown:
+        '[Guide](?path=/docs/guides-guide--docs#usage) [Site](https://example.com/) [Anchor](#usage)',
+    },
+  ]);
+
+  const location = window.location.href;
+
+  await page.getByRole('link', { name: 'Guide' }).click();
+  expect(emitted).toEqual([['?path=/docs/guides-guide--docs#usage']]);
+  expect(window.location.href).toBe(location);
+
+  const site = page.getByRole('link', { name: 'Site' });
+
+  await expect.element(site).toHaveAttribute('href', 'https://example.com/');
+  await site.click({ modifiers: ['Meta'] });
+  await page.getByRole('link', { name: 'Anchor' }).click();
+  expect(emitted).toHaveLength(1);
+});
