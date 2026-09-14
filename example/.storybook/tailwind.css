@@ -23,6 +23,10 @@
   --color-canvas: light-dark(#ffffff, #0d1117);
   --color-success: light-dark(#1a7f37, #3fb950);
   --color-success-soft: light-dark(#dafbe1, #12261e);
+  --color-accent: light-dark(#0969da, #4493f8);
+  --color-done: light-dark(#8250df, #ab7df8);
+  --color-attention: light-dark(#9a6700, #d29922);
+  --color-danger: light-dark(#d1242f, #f85149);
   --text-title: 2rem;
   --leading-title: 1.2;
   --radius-full: 999px;

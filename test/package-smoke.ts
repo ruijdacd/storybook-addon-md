@@ -72,7 +72,10 @@ try {
     path.join(project, 'docs/assets/button.svg'),
     '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="green"/></svg>',
   );
-  await writeFile(path.join(project, 'docs/Asset-check.md'), '![Asset check](./assets/button.svg)');
+  await writeFile(
+    path.join(project, 'docs/Asset-check.md'),
+    '> [!NOTE]\n> ![Asset check](./assets/button.svg)\n',
+  );
 
   await cp('.npmrc', path.join(project, '.npmrc'));
   await cp('nub.jsonc', path.join(project, 'nub.jsonc'));

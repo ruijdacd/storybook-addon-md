@@ -24,6 +24,21 @@ Use your theme selector to override colors in dark mode. The [complete example](
 | Variable                          | CSS property                  |
 | --------------------------------- | ----------------------------- |
 | `--sbmd-background`               | `background`                  |
+| `--sbmd-callout-background`       | `background`                  |
+| `--sbmd-callout-border`           | `border-inline-start`         |
+| `--sbmd-callout-caution-color`    | Caution accent color          |
+| `--sbmd-callout-color`            | `color`                       |
+| `--sbmd-callout-important-color`  | Important accent color        |
+| `--sbmd-callout-label-color`      | `color`                       |
+| `--sbmd-callout-label-margin`     | `margin-bottom`               |
+| `--sbmd-callout-label-size`       | `font-size`                   |
+| `--sbmd-callout-label-weight`     | `font-weight`                 |
+| `--sbmd-callout-margin`           | `margin`                      |
+| `--sbmd-callout-note-color`       | Note accent color             |
+| `--sbmd-callout-padding`          | `padding`                     |
+| `--sbmd-callout-radius`           | `border-radius`               |
+| `--sbmd-callout-tip-color`        | Tip accent color              |
+| `--sbmd-callout-warning-color`    | Warning accent color          |
 | `--sbmd-checkbox-color`           | `accent-color`                |
 | `--sbmd-checkbox-gap`             | `margin-inline-end`           |
 | `--sbmd-code-border`              | `border`                      |
@@ -106,6 +121,8 @@ Use your theme selector to override colors in dark mode. The [complete example](
 
 Status chips have `data-status` set to the original frontmatter value. Override `--sbmd-tag-*` on selectors such as `.storybook-addon-md-tag[data-status="stable" i]` to assign a status-specific appearance.
 
+Callouts are `.storybook-addon-md-callout` elements with `data-callout` set to `note`, `tip`, `important`, `warning`, or `caution`, and a `.storybook-addon-md-callout-label` paragraph. Each type’s accent color sets the default border color and label color. Per-type accent variables default to Storybook theme colors chosen for the light or dark base. `--sbmd-callout-color` applies to text inside callouts; `--sbmd-callout-border` and `--sbmd-callout-label-color` replace the accent for every type.
+
 These styles target Markdown content and its title/chips. Story canvases, props controls, and syntax-highlighting colors still use Storybook’s theme. Custom renderers can use the shared styles when they produce matching HTML elements; custom layouts own any additional structure. Internal `--sbmd-native-*` variables carry Storybook theme values and are not customization hooks.
 
 ## Customization
@@ -147,6 +164,34 @@ Status chips share the tag variables. Use `data-status` to map values to your th
 
 The `i` flag matches both `Stable` and `stable`. The addon accepts any status; your stylesheet decides its colors. Set `color-scheme: light dark` on the theme container when using `light-dark()`.
 
+### Callouts
+
+Map the accent colors to your design tokens, and adjust the shared box and label styles:
+
+```css
+.storybook-addon-md-page {
+  --sbmd-callout-note-color: light-dark(#0969da, #4493f8);
+  --sbmd-callout-tip-color: light-dark(#1a7f37, #3fb950);
+  --sbmd-callout-important-color: light-dark(#8250df, #ab7df8);
+  --sbmd-callout-warning-color: light-dark(#9a6700, #d29922);
+  --sbmd-callout-caution-color: light-dark(#d1242f, #f85149);
+  --sbmd-callout-padding: 0.5rem 1rem;
+  --sbmd-callout-radius: 0.375rem;
+  --sbmd-callout-label-weight: 500;
+}
+```
+
+Use `data-callout` for anything that differs per type beyond the accent color, such as a tinted background or a different border width:
+
+```css
+.storybook-addon-md-callout[data-callout='caution'] {
+  --sbmd-callout-background: light-dark(#ffebe9, #2d1214);
+  --sbmd-callout-border: 0.375rem solid var(--sbmd-callout-caution-color);
+}
+```
+
+The label is visible text, so callouts remain distinguishable without color. The markup is static: no `role="alert"` or live region is used.
+
 ### Light and Dark Themes
 
 Use Storybook’s standard Docs theme configuration for a fixed theme:
@@ -179,6 +224,8 @@ export function MarkdownRenderer(document: MarkdownDocument) {
 ```
 
 `MarkdownRenderer` receives `{ markdown, metadata, source, heading? }`: processed Markdown with resolved asset URLs, preserved frontmatter, and the source path relative to the project folder.
+
+Callouts are rendered by `DefaultMarkdownRenderer`. A custom `MarkdownRenderer` receives them as ordinary blockquotes whose first line is the `[!NOTE]` marker, serialized as `\[!NOTE]` so that renderers treat the brackets as text. Render callouts yourself or delegate to `DefaultMarkdownRenderer`. Custom layouts are unaffected because callouts are part of `children`.
 
 `Layout` receives `{ documents, title, attached, children, examples, heading, tagFields }`. A standalone leading H1 is extracted in the default pipeline and supplied as the rendered `heading` node; render it instead of your fallback title. The remaining Markdown is supplied through `children`, while source files and manifests stay intact. `tagFields` lists configured metadata fields for tag display. Render `children` and `examples` to keep documentation and native example/props blocks. `examples` is `null` for standalone pages. `title` contains the standalone sidebar title and is empty for attached pages; `DefaultLayout` uses Storybook’s `Title` block for those.
 

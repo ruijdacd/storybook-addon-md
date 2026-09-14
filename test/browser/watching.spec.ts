@@ -29,9 +29,13 @@ test('development: additions after startup appear in the sidebar, update, and di
     await expect(preview.getByRole('heading', { name: 'Added after startup' })).toBeVisible();
     await expect(preview.locator('.storybook-addon-md-page h1')).toHaveCount(1);
 
-    await writeFile(file, '---\ntitle: Guides/Added live\n---\n## Edited without restart\n');
+    await writeFile(
+      file,
+      '---\ntitle: Guides/Added live\n---\n## Edited without restart\n\n> [!WARNING]\n> Live callout\n',
+    );
 
     await expect(preview.getByRole('heading', { name: 'Edited without restart' })).toBeVisible();
+    await expect(preview.locator('[data-callout="warning"]')).toHaveText('WarningLive callout');
     await expect(preview.getByRole('heading', { name: 'Added live', exact: true })).toBeVisible();
     await expect(preview.locator('.storybook-addon-md-page h1')).toHaveCount(1);
 

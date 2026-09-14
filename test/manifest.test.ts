@@ -16,7 +16,7 @@ test('manifests preserve original source and only replace known generated pages'
   await writeFile(path.join(root, 'Toggle.stories.tsx'), 'export default {};');
 
   const standalone =
-    '\uFEFF---\r\ntitle: Guide\r\ndescription: A guide\r\n---\r\n# Original {text}\r\n';
+    '\uFEFF---\r\ntitle: Guide\r\ndescription: A guide\r\n---\r\n# Original {text}\r\n\r\n> [!NOTE]\r\n> Kept as written.\r\n';
   const attached = '---\nstatus: Stable\n---\n# Button\n';
   const shared =
     '---\nstories: [../Button.stories.tsx, ../Toggle.stories.tsx]\ndescription: Shared guidance\n---\n# Shared\n';
