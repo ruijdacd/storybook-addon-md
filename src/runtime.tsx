@@ -55,12 +55,24 @@ function Blockquote({ children, ...props }: ComponentProps<'blockquote'>) {
   );
 }
 
+function Anchor({ href, target, ...props }: ComponentProps<'a'>) {
+  if (!href?.startsWith('?path=')) return <a {...props} href={href} target={target} />;
+
+  return (
+    <a
+      {...props}
+      href={new URL(href, new URL('./', window.location.href)).href}
+      target={target ?? '_top'}
+    />
+  );
+}
+
 export function DefaultMarkdownRenderer({ markdown }: MarkdownDocument) {
   return (
     <Markdown
       options={{
         disableParsingRawHTML: true,
-        overrides: { code: CodeOrSourceMdx, ...HeadersMdx, a: 'a', blockquote: Blockquote },
+        overrides: { code: CodeOrSourceMdx, ...HeadersMdx, a: Anchor, blockquote: Blockquote },
       }}
     >
       {markdown}

@@ -466,3 +466,31 @@ test('custom renderers receive callouts as GitHub alert syntax', async () => {
   expect(container.querySelector('pre')?.textContent).toContain('> \\[!NOTE]\n> Additional');
   expect(container.querySelector('.storybook-addon-md-callout')).toBeNull();
 });
+
+test('Storybook path links point at the manager and open in the top frame', async () => {
+  await render(themes.light, [
+    {
+      source: 'Links.md',
+      metadata: {},
+      markdown:
+        '[Guide](?path=/docs/guides-guide--docs#usage) [Site](https://example.com/) [Anchor](#usage)',
+    },
+  ]);
+
+  const guide = page.getByRole('link', { name: 'Guide' });
+
+  await expect
+    .element(guide)
+    .toHaveAttribute(
+      'href',
+      new URL('?path=/docs/guides-guide--docs#usage', new URL('./', window.location.href)).href,
+    );
+  await expect.element(guide).toHaveAttribute('target', '_top');
+  await expect
+    .element(page.getByRole('link', { name: 'Site' }))
+    .toHaveAttribute('href', 'https://example.com/');
+  await expect.element(page.getByRole('link', { name: 'Site' })).not.toHaveAttribute('target');
+  await expect
+    .element(page.getByRole('link', { name: 'Anchor' }))
+    .toHaveAttribute('href', '#usage');
+});
