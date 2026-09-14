@@ -1,5 +1,16 @@
 # storybook-addon-md
 
+## 0.8.0
+
+### Minor Changes
+
+- 298284c: Add an opt-in `links` option that rewrites relative Markdown links instead of bundling their targets as assets.
+
+  - `links.documents` (default `true` when `links` is set) turns links to other discovered documents into ordinary links to their Docs page in the Storybook manager.
+  - `links.repository` turns links to other files or folders inside root into `<repository>/<relative path>` links, so source files are no longer copied into the bundle and folder links no longer fail discovery.
+
+  Images, image reference definitions, manifests, and the default behavior without `links` are unchanged.
+
 ## 0.7.0
 
 ### Minor Changes
