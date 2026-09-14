@@ -255,7 +255,7 @@ Set `stylesheet: '.storybook/markdown.css'` to override the defaults:
 }
 ```
 
-Variables cover typography, spacing, borders, links, code, tables, chips, and callouts. Defaults follow Storybook’s Docs theme in light and dark mode.
+Shared tokens cover accent, border, radius, and spacing. Element variables cover the page layout, typography, links, quotes, callouts, code, tables, images, and chips. Defaults follow Storybook’s Docs theme in light and dark mode.
 
 See [Styling](STYLING.md) for all variables, status and callout colors, theme switching, and custom layouts or Markdown renderers. The [example stylesheet](https://github.com/ruijdacd/storybook-addon-md/blob/main/example/.storybook/markdown.css) provides a complete GitHub-inspired theme.
 
