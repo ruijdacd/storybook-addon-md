@@ -1,4 +1,5 @@
-import type { CSSProperties } from 'react';
+import type { ComponentProps, CSSProperties, ReactNode } from 'react';
+import { Children, cloneElement, isValidElement } from 'react';
 import type { StorybookTheme } from 'storybook/theming';
 import { useTheme } from 'storybook/theming';
 import type { MarkdownDocument, LayoutProps, Presentation } from './types.js';
@@ -14,12 +15,52 @@ import {
 
 export type { MarkdownDocument, LayoutProps, Presentation } from './types.js';
 
+const calloutLabels = {
+  note: 'Note',
+  tip: 'Tip',
+  important: 'Important',
+  warning: 'Warning',
+  caution: 'Caution',
+};
+
+function Blockquote({ children, ...props }: ComponentProps<'blockquote'>) {
+  const [first, ...rest] = Children.toArray(children);
+  const paragraph =
+    isValidElement<{ children?: ReactNode }>(first) && first.type === 'p' ? first : undefined;
+  const items = Children.toArray(paragraph?.props.children);
+  const split = items.findIndex((item) => typeof item !== 'string');
+  const leading = items.slice(0, split === -1 ? items.length : split).join('');
+  const marker = /^\[!(note|tip|important|warning|caution)\](\n|$)/i.exec(leading);
+
+  if (!paragraph || !marker || (!marker[2] && split !== -1)) {
+    return <blockquote {...props}>{children}</blockquote>;
+  }
+
+  const type = marker[1].toLowerCase() as keyof typeof calloutLabels;
+  const remainder = leading.slice(marker[0].length);
+  const trailing = split === -1 ? [] : items.slice(split);
+  const content =
+    remainder || trailing.length
+      ? [
+          cloneElement(paragraph, undefined, ...(remainder ? [remainder] : []), ...trailing),
+          ...rest,
+        ]
+      : rest;
+
+  return (
+    <div className="storybook-addon-md-callout" data-callout={type}>
+      <p className="storybook-addon-md-callout-label">{calloutLabels[type]}</p>
+      {content}
+    </div>
+  );
+}
+
 export function DefaultMarkdownRenderer({ markdown }: MarkdownDocument) {
   return (
     <Markdown
       options={{
         disableParsingRawHTML: true,
-        overrides: { code: CodeOrSourceMdx, ...HeadersMdx, a: 'a' },
+        overrides: { code: CodeOrSourceMdx, ...HeadersMdx, a: 'a', blockquote: Blockquote },
       }}
     >
       {markdown}
@@ -101,6 +142,7 @@ export function Documentation({
   tagFields?: string[];
 }) {
   const theme = useTheme() as StorybookTheme;
+  const dark = theme.base === 'dark';
   const defaults = {
     '--sbmd-native-color': theme.color.defaultText,
     '--sbmd-native-link-color': theme.color.secondary,
@@ -108,6 +150,13 @@ export function Documentation({
     '--sbmd-native-monospace-font-family': theme.typography.fonts.mono,
     '--sbmd-native-border-color': theme.appBorderColor,
     '--sbmd-native-code-background': theme.background.content,
+    '--sbmd-native-callout-note-color': theme.color.secondary,
+    '--sbmd-native-callout-tip-color': dark ? theme.color.positive : theme.color.positiveText,
+    '--sbmd-native-callout-important-color': dark
+      ? `color-mix(in srgb, ${theme.color.purple}, white 45%)`
+      : theme.color.purple,
+    '--sbmd-native-callout-warning-color': dark ? theme.color.warning : theme.color.warningText,
+    '--sbmd-native-callout-caution-color': dark ? theme.color.negative : theme.color.negativeText,
   } as CSSProperties;
   const Layout = presentation.Layout ?? DefaultLayout;
   const Renderer = presentation.MarkdownRenderer ?? DefaultMarkdownRenderer;

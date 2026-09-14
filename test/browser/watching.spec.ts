@@ -29,9 +29,13 @@ test('development: additions after startup appear in the sidebar, update, and di
     await expect(preview.getByRole('heading', { name: 'Added after startup' })).toBeVisible();
     await expect(preview.locator('.storybook-addon-md-page h1')).toHaveCount(1);
 
-    await writeFile(file, '---\ntitle: Guides/Added live\n---\n## Edited without restart\n');
+    await writeFile(
+      file,
+      '---\ntitle: Guides/Added live\n---\n## Edited without restart\n\n> [!WARNING]\n> Live callout\n',
+    );
 
     await expect(preview.getByRole('heading', { name: 'Edited without restart' })).toBeVisible();
+    await expect(preview.locator('[data-callout="warning"]')).toHaveText('WarningLive callout');
     await expect(preview.getByRole('heading', { name: 'Added live', exact: true })).toBeVisible();
     await expect(preview.locator('.storybook-addon-md-page h1')).toHaveCount(1);
 
@@ -106,14 +110,17 @@ test('development: stylesheet edits update the Markdown content live', async ({ 
 
     const heading = page.getByRole('heading', { name: /Overview$/ });
 
-    await expect(heading).toHaveCSS('border-bottom-style', 'solid');
+    await expect(heading).not.toHaveCSS('border-bottom-color', 'rgb(1, 2, 3)');
 
     await writeFile(
       file,
-      original.replace('--sbmd-h2-border: 1px solid', '--sbmd-h2-border: 1px dotted'),
+      original.replace(
+        '--sbmd-border-color: var(--color-control-border)',
+        '--sbmd-border-color: rgb(1, 2, 3)',
+      ),
     );
 
-    await expect(heading).toHaveCSS('border-bottom-style', 'dotted');
+    await expect(heading).toHaveCSS('border-bottom-color', 'rgb(1, 2, 3)');
   } finally {
     await writeFile(file, original);
   }

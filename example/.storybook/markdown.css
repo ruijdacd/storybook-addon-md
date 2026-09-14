@@ -2,74 +2,67 @@
   --sbmd-font-family: var(--font-sans);
   --sbmd-font-size: var(--text-base);
   --sbmd-line-height: var(--leading-normal);
-  --sbmd-link-color: var(--color-control-focus);
-  --sbmd-heading-font-family: var(--sbmd-font-family);
-  --sbmd-heading-weight: var(--font-weight-semibold);
   --sbmd-color: var(--color-control-foreground);
-  --sbmd-background: var(--color-canvas);
-  --sbmd-code-radius: var(--radius-lg);
-  --sbmd-image-radius: var(--radius-lg);
+  --sbmd-border-color: var(--color-control-border);
+  --sbmd-block-spacing: calc(var(--spacing) * 4);
+  --sbmd-heading-spacing: calc(var(--spacing) * 6);
+  --sbmd-heading-weight: var(--font-weight-semibold);
+  --sbmd-h1-size: var(--text-title);
+  --sbmd-link-color: var(--color-control-focus);
+  --sbmd-link-decoration: underline;
+  --sbmd-list-item-spacing: calc(var(--spacing) * 1.5);
+  --sbmd-quote-border: 4px solid var(--color-control-border);
+  --sbmd-quote-padding: 0 calc(var(--spacing) * 4);
+  --sbmd-callout-padding: calc(var(--spacing) * 2) calc(var(--spacing) * 4);
+  --sbmd-callout-label-weight: var(--font-weight-medium);
+  --sbmd-callout-note-color: var(--color-accent);
+  --sbmd-callout-tip-color: var(--color-success);
+  --sbmd-callout-important-color: var(--color-done);
+  --sbmd-callout-warning-color: var(--color-attention);
+  --sbmd-callout-caution-color: var(--color-danger);
+  --sbmd-code-radius: var(--radius-md);
+  --sbmd-code-padding: calc(var(--spacing) * 5);
+  --sbmd-inline-code-padding: calc(var(--spacing) * 0.5) calc(var(--spacing) * 1.5);
+  --sbmd-inline-code-background: var(--color-surface);
+  --sbmd-table-cell-padding: calc(var(--spacing) * 1.5) calc(var(--spacing) * 3.25);
+  --sbmd-table-stripe-background: var(--color-surface);
   --sbmd-tag-color: var(--color-control-muted);
-  --sbmd-tag-background: transparent;
   --sbmd-tag-border: 1px solid var(--color-control-border);
   --sbmd-tag-radius: var(--radius-full);
   --sbmd-tag-padding: calc(var(--spacing) * 0.5) calc(var(--spacing) * 1.75);
   --sbmd-tag-font-size: var(--text-xs);
-  --sbmd-tag-font-weight: var(--font-weight-medium);
-  --sbmd-tag-gap: calc(var(--spacing) * 2);
-  --sbmd-tag-margin: calc(var(--spacing) * 7);
-  --sbmd-title-size: var(--text-title);
-  --sbmd-title-line-height: var(--leading-title);
-  --sbmd-title-letter-spacing: normal;
-  --sbmd-title-margin: calc(var(--spacing) * 4);
-  --sbmd-h2-margin: calc(var(--spacing) * 6);
-  --sbmd-h2-padding: calc(var(--spacing) * 2);
-  --sbmd-h2-border: 1px solid var(--color-control-border);
-  --sbmd-h2-letter-spacing: normal;
-  --sbmd-h3-margin: calc(var(--spacing) * 7);
-  --sbmd-h3-letter-spacing: normal;
-  --sbmd-paragraph-spacing: calc(var(--spacing) * 4);
-  --sbmd-list-item-spacing: calc(var(--spacing) * 1.5);
-  --sbmd-list-marker-color: var(--color-control-foreground);
-  --sbmd-link-decoration: underline;
-  --sbmd-link-underline-offset: 3px;
-  --sbmd-link-thickness: 1px;
-  --sbmd-link-hover-thickness: 2px;
-  --sbmd-link-focus-outline: 2px solid var(--color-control-focus);
-  --sbmd-link-focus-offset: 4px;
-  --sbmd-link-radius: 2px;
-  --sbmd-quote-margin: calc(var(--spacing) * 6) 0;
-  --sbmd-quote-padding: 0 calc(var(--spacing) * 4);
-  --sbmd-quote-border: 4px solid var(--color-control-border);
-  --sbmd-quote-radius: 0;
-  --sbmd-quote-background: transparent;
-  --sbmd-inline-code-padding: calc(var(--spacing) * 0.5) calc(var(--spacing) * 1.5);
-  --sbmd-inline-code-border: 0;
-  --sbmd-inline-code-radius: var(--radius-sm);
-  --sbmd-inline-code-background: var(--color-surface);
-  --sbmd-inline-code-color: var(--color-control-foreground);
-  --sbmd-inline-code-size: 0.9em;
-  --sbmd-code-padding: calc(var(--spacing) * 5);
-  --sbmd-code-border: 1px solid var(--color-control-border);
-  --sbmd-table-margin: calc(var(--spacing) * 6);
-  --sbmd-table-cell-padding: calc(var(--spacing) * 1.5) calc(var(--spacing) * 3.25);
-  --sbmd-table-border: 1px solid var(--color-control-border);
-  --sbmd-table-align: start;
-  --sbmd-table-heading-background: transparent;
-  --sbmd-table-heading-weight: var(--font-weight-semibold);
-  --sbmd-table-background: transparent;
-  --sbmd-table-stripe-background: var(--color-surface);
-  --sbmd-image-margin: calc(var(--spacing) * 6);
-  --sbmd-image-border: 1px solid var(--color-control-border);
-  --sbmd-rule-height: 1px;
-  --sbmd-rule-margin: calc(var(--spacing) * 8);
-  --sbmd-rule-color: var(--color-control-border);
-  --sbmd-checkbox-color: var(--color-control-focus);
-  --sbmd-checkbox-gap: calc(var(--spacing) * 2);
+  background: var(--color-canvas);
 }
 
 .storybook-addon-md-tag[data-status='stable' i] {
   --sbmd-tag-color: var(--color-success);
   --sbmd-tag-background: var(--color-success-soft);
   --sbmd-tag-border: 1px solid var(--color-success);
+}
+
+.sbdocs-content .storybook-addon-md a {
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+
+.sbdocs-content .storybook-addon-md a:hover {
+  text-decoration-thickness: 2px;
+}
+
+.sbdocs-content .storybook-addon-md :not(pre) > code {
+  border: 0;
+}
+
+.sbdocs-content .storybook-addon-md img {
+  margin-block: calc(var(--spacing) * 6);
+  border: 1px solid var(--color-control-border);
+  border-radius: var(--radius-md);
+}
+
+.sbdocs-content .storybook-addon-md-tags {
+  gap: calc(var(--spacing) * 2);
+}
+
+.sbdocs-content .storybook-addon-md input[type='checkbox'] {
+  accent-color: var(--color-control-focus);
 }

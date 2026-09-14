@@ -163,6 +163,35 @@ test('assets include inline links, reference images, encoded paths, downloads an
   await assert.rejects(resolveAssets('[Bad](bad%XX.png)', file, root), /invalid local URL/);
 });
 
+test('callouts keep their markers, resolve nested assets, and leave the source untouched', async (t) => {
+  const { root, config, put } = await fixture(t);
+
+  await put('docs/icon.svg', '<svg/>');
+  await put('docs/other.md', '# Other');
+
+  const body =
+    '> [!NOTE]\n> Additional *context* with a [link](./other.md) and ![icon](icon.svg).\n>\n> ```js\n> const value = 1;\n> ```\n\n> Plain quote.\n';
+  const original = `---\ntitle: Guides/Callouts\n---\n${body}`;
+
+  await put('docs/callouts.md', original);
+
+  const [document] = await discover(config);
+
+  assert.equal(document.original, original);
+  assert.equal(document.body, body);
+  assert.equal(
+    document.markdown,
+    body
+      .replace('[!NOTE]', '\\[!NOTE]')
+      .replace('./other.md', 'SBMDASSET0END')
+      .replace('icon.svg', 'SBMDASSET1END'),
+  );
+  assert.deepEqual(
+    document.assets.map((asset) => asset.file),
+    [path.join(root, 'docs/other.md'), path.join(root, 'docs/icon.svg')],
+  );
+});
+
 test('duplicate sidebar titles fail before writing output', async (t) => {
   const { config, put } = await fixture(t);
 
