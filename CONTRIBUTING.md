@@ -46,7 +46,7 @@ npm trusted publishing is configured for `ruijdacd/storybook-addon-md`, workflow
 
 Release PRs created with GitHub’s automatic token do not trigger PR workflows. If required checks block merging, close and reopen the PR yourself to trigger them. The release workflow always waits for CI on the merged commit.
 
-Follow [e18e's publishing guidance](https://e18e.dev/docs/publishing.html) when maintaining repository settings. Once the repository is public, enable private vulnerability reporting and approval for first-time contributors, and protect `main` with the `verify` status check. Enable required action SHA pinning after the pinned workflows are merged. A restricted publishing environment must also be configured in npm's trusted publisher before adding it to the workflow. Staged npm publishing is an optional switch from the current automatic release flow.
+Follow [e18e's publishing guidance](https://e18e.dev/docs/publishing.html) when maintaining repository settings. Keep private vulnerability reporting and approval for first-time contributors enabled, and require the `verify` status check on `main`. Enable required action SHA pinning after the pinned workflows are merged. A restricted publishing environment must also be configured in npm's trusted publisher before adding it to the workflow. Staged npm publishing is an optional switch from the current automatic release flow.
 
 ## Deploy the example
 
