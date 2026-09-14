@@ -485,8 +485,15 @@ test('Storybook path links navigate through the preview channel without reloadin
   ]);
 
   const location = window.location.href;
+  const guide = page.getByRole('link', { name: 'Guide' });
 
-  await page.getByRole('link', { name: 'Guide' }).click();
+  await expect
+    .element(guide)
+    .toHaveAttribute(
+      'href',
+      new URL('?path=/docs/guides-guide--docs#usage', new URL('./', location)).href,
+    );
+  await guide.click();
   expect(emitted).toEqual([['?path=/docs/guides-guide--docs#usage']]);
   expect(window.location.href).toBe(location);
 

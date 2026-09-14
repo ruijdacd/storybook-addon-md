@@ -57,13 +57,40 @@ function Blockquote({ children, ...props }: ComponentProps<'blockquote'>) {
   );
 }
 
+const managerBase = () => new URL('./', window.location.href);
+
+function storybookPath(href: string | null | undefined) {
+  if (!href) return undefined;
+
+  if (href.startsWith('?path=')) return href;
+
+  try {
+    const base = managerBase();
+    const url = new URL(href, base);
+
+    return url.origin === base.origin &&
+      url.pathname === base.pathname &&
+      url.search.startsWith('?path=')
+      ? `${url.search}${url.hash}`
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function Anchor({ href, ...props }: ComponentProps<'a'>) {
+  const path = storybookPath(href);
+
+  return <a {...props} href={path ? new URL(path, managerBase()).href : href} />;
+}
+
 function navigate(event: MouseEvent<HTMLDivElement>) {
   const anchor = (event.target as Element).closest('a');
-  const href = anchor?.getAttribute('href');
+  const path = storybookPath(anchor?.getAttribute('href'));
 
   if (
     !anchor ||
-    !href?.startsWith('?path=') ||
+    !path ||
     !event.currentTarget.contains(anchor) ||
     anchor.target === '_blank' ||
     event.button !== 0 ||
@@ -75,7 +102,7 @@ function navigate(event: MouseEvent<HTMLDivElement>) {
     return;
 
   event.preventDefault();
-  addons.getChannel().emit(NAVIGATE_URL, href);
+  addons.getChannel().emit(NAVIGATE_URL, path);
 }
 
 export function DefaultMarkdownRenderer({ markdown }: MarkdownDocument) {
@@ -83,7 +110,7 @@ export function DefaultMarkdownRenderer({ markdown }: MarkdownDocument) {
     <Markdown
       options={{
         disableParsingRawHTML: true,
-        overrides: { code: CodeOrSourceMdx, ...HeadersMdx, a: 'a', blockquote: Blockquote },
+        overrides: { code: CodeOrSourceMdx, ...HeadersMdx, a: Anchor, blockquote: Blockquote },
       }}
     >
       {markdown}

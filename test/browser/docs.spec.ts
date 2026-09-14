@@ -56,7 +56,7 @@ for (const [mode, port] of [
 
     await expect(page.getByRole('link', { name: 'shared guidance' })).toHaveAttribute(
       'href',
-      '?path=/docs/components-button--docs',
+      `http://localhost:${port}/?path=/docs/components-button--docs`,
     );
     await expect(page.getByRole('link', { name: 'Button source' })).toHaveAttribute(
       'href',
@@ -117,7 +117,7 @@ for (const [mode, port] of [
 
     await expect(
       page.locator('[data-callout="tip"]').getByRole('link', { name: 'introduction' }),
-    ).toHaveAttribute('href', '?path=/docs/guides-introduction--docs');
+    ).toHaveAttribute('href', `http://localhost:${port}/?path=/docs/guides-introduction--docs`);
 
     const accents = await calloutElements.evaluateAll((elements) =>
       elements.map((element) => ({
@@ -297,7 +297,10 @@ for (const [mode, port, suffix] of [
     const wrapper = preview.locator('.sbdocs-wrapper');
     const link = preview.getByRole('link', { name: 'shared guidance' });
 
-    await expect(link).toHaveAttribute('href', `?path=/docs/components-button--${suffix}`);
+    await expect(link).toHaveAttribute(
+      'href',
+      `http://localhost:${port}/?path=/docs/components-button--${suffix}`,
+    );
 
     const managerOrigin = await page.evaluate(() => performance.timeOrigin);
     const previewOrigin = await wrapper.evaluate(() => performance.timeOrigin);
