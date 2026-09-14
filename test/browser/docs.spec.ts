@@ -88,10 +88,59 @@ for (const [mode, port] of [
       .toBeLessThanOrEqual(390);
     await page.setViewportSize(viewport);
 
+    await open('guides-callouts--docs');
+
+    const calloutTypes = ['note', 'tip', 'important', 'warning', 'caution'];
+    const calloutElements = page.locator('.storybook-addon-md-callout');
+
+    await expect(calloutElements).toHaveCount(5);
+    expect(
+      await calloutElements.evaluateAll((elements) =>
+        elements.map((element) => element.getAttribute('data-callout')),
+      ),
+    ).toEqual(calloutTypes);
+    await expect(page.locator('.storybook-addon-md-callout-label')).toHaveText([
+      'Note',
+      'Tip',
+      'Important',
+      'Warning',
+      'Caution',
+    ]);
+    await expect(page.getByText('[!NOTE]')).toHaveCount(0);
+    await expect(page.getByText('[!FOOTNOTE]')).toBeVisible();
+    await expect(page.locator('blockquote')).toHaveCount(2);
+    await expect(page.locator('[data-callout="important"] li')).toHaveCount(2);
+    await expect(page.locator('[data-callout="warning"] pre.prismjs')).toContainText(
+      'window.confirm',
+    );
+
+    const calloutLink = page.locator('[data-callout="tip"]').getByRole('link', {
+      name: 'introduction',
+    });
+    const calloutSource = await request.get(
+      await calloutLink.evaluate((element: HTMLAnchorElement) => element.href),
+    );
+
+    expect(calloutSource.ok()).toBeTruthy();
+    expect(await calloutSource.text()).toContain('Ordinary Markdown, inside Storybook');
+
+    const accents = await calloutElements.evaluateAll((elements) =>
+      elements.map((element) => ({
+        border: getComputedStyle(element).borderInlineStartColor,
+        label: getComputedStyle(element.firstElementChild!).color,
+      })),
+    );
+
+    expect(new Set(accents.map((accent) => accent.label)).size).toBe(5);
+    for (const accent of accents) expect(accent.border).toBe(accent.label);
+
     await open('components-button--docs');
 
     await expect(page.getByRole('heading', { name: /Overview$/ })).toBeVisible();
     await expect(page.locator('[data-status="Stable"]')).toBeVisible();
+    await expect(page.locator('[data-callout="tip"]')).toContainText(
+      'TipUse the danger variant only for destructive actions.',
+    );
 
     const unresolvedThemeVariables = await page
       .locator('.storybook-addon-md-page')
@@ -168,6 +217,13 @@ for (const [mode, port] of [
       await expect(page.locator('.storybook-addon-md-tag').first()).toHaveCSS(
         'color',
         colorScheme === 'dark' ? 'rgb(145, 152, 161)' : 'rgb(89, 99, 110)',
+      );
+      await expect(
+        page.locator('[data-callout="tip"] .storybook-addon-md-callout-label'),
+      ).toHaveCSS('color', colorScheme === 'dark' ? 'rgb(63, 185, 80)' : 'rgb(26, 127, 55)');
+      await expect(page.locator('[data-callout="tip"]')).toHaveCSS(
+        'border-left-color',
+        colorScheme === 'dark' ? 'rgb(63, 185, 80)' : 'rgb(26, 127, 55)',
       );
 
       colors.push(

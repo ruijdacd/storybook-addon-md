@@ -109,6 +109,65 @@
   background: var(--sbmd-quote-background, transparent);
 }
 
+.sbdocs-content .storybook-addon-md-callout {
+  margin: var(--sbmd-callout-margin, 1rem 0);
+  padding: var(--sbmd-callout-padding, 0.5rem 1rem);
+  border-inline-start: var(--sbmd-callout-border, 0.25rem solid var(--sbmd-native-callout-color));
+  border-radius: var(--sbmd-callout-radius, 0);
+  background: var(--sbmd-callout-background, transparent);
+}
+
+.sbdocs-content .storybook-addon-md-callout[data-callout='note'] {
+  --sbmd-native-callout-color: var(
+    --sbmd-callout-note-color,
+    var(--sbmd-native-callout-note-color)
+  );
+}
+
+.sbdocs-content .storybook-addon-md-callout[data-callout='tip'] {
+  --sbmd-native-callout-color: var(--sbmd-callout-tip-color, var(--sbmd-native-callout-tip-color));
+}
+
+.sbdocs-content .storybook-addon-md-callout[data-callout='important'] {
+  --sbmd-native-callout-color: var(
+    --sbmd-callout-important-color,
+    var(--sbmd-native-callout-important-color)
+  );
+}
+
+.sbdocs-content .storybook-addon-md-callout[data-callout='warning'] {
+  --sbmd-native-callout-color: var(
+    --sbmd-callout-warning-color,
+    var(--sbmd-native-callout-warning-color)
+  );
+}
+
+.sbdocs-content .storybook-addon-md-callout[data-callout='caution'] {
+  --sbmd-native-callout-color: var(
+    --sbmd-callout-caution-color,
+    var(--sbmd-native-callout-caution-color)
+  );
+}
+
+.sbdocs-content .storybook-addon-md-callout :is(p, li, td, th) {
+  color: var(--sbmd-callout-color, var(--sbmd-color, var(--sbmd-native-color)));
+}
+
+.sbdocs-content .storybook-addon-md .storybook-addon-md-callout-label {
+  margin: 0 0 var(--sbmd-callout-label-margin, 0.25rem);
+  color: var(--sbmd-callout-label-color, var(--sbmd-native-callout-color));
+  font-size: var(--sbmd-callout-label-size, var(--sbmd-font-size, 0.875rem));
+  font-weight: var(--sbmd-callout-label-weight, 600);
+}
+
+.sbdocs-content .storybook-addon-md-callout > .storybook-addon-md-callout-label + * {
+  margin-top: 0;
+}
+
+.sbdocs-content .storybook-addon-md-callout > :last-child {
+  margin-bottom: 0;
+}
+
 .sbdocs-content .storybook-addon-md :not(pre) > code {
   padding: var(--sbmd-inline-code-padding, 0.1875rem 0.3125rem);
   border: var(--sbmd-inline-code-border, 0.0625rem solid var(--sbmd-native-border-color));
@@ -174,7 +233,8 @@
   margin-inline-end: var(--sbmd-checkbox-gap, 0.25rem);
 }
 
-.sbdocs-content .storybook-addon-md > pre {
+.sbdocs-content .storybook-addon-md > pre,
+.sbdocs-content .storybook-addon-md-callout > pre {
   padding: 0;
   border: 0;
   white-space: normal;

@@ -23,6 +23,10 @@ const config: StorybookConfig = {
   viteFinal: (config) => ({
     ...config,
     plugins: [...(config.plugins ?? []), tailwindcss()],
+    optimizeDeps: {
+      ...config.optimizeDeps,
+      include: [...(config.optimizeDeps?.include ?? []), 'clsx', 'class-variance-authority'],
+    },
   }),
 };
 

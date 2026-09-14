@@ -110,6 +110,29 @@ Without a title, `docs/Introduction.md` appears at `Documentation/docs/Introduct
 
 A leading Markdown H1 supplies the visible title, including inline formatting. Otherwise the final segment of `title` is shown. Both `# Heading` and Setext H1 syntax work; a later H1 is ordinary content. Sidebar placement and IDs always use the configured or inferred sidebar title. The original file and manifest content remain unchanged.
 
+### Callouts
+
+GitHub-style alerts render as labelled callouts:
+
+```md
+> [!NOTE]
+> Additional context.
+
+> [!TIP]
+> Recommended approach.
+
+> [!IMPORTANT]
+> Information readers need to succeed.
+
+> [!WARNING]
+> Something that requires care.
+
+> [!CAUTION]
+> A risk or destructive consequence.
+```
+
+The marker must be the first line of a blockquote, on its own, and is case-insensitive. Callouts keep ordinary Markdown, including paragraphs, emphasis, links, lists, and code blocks, and relative links and images inside them resolve as usual. Blockquotes without a marker, unrecognized markers, and markers followed by text on the same line render as ordinary blockquotes. Custom titles and collapsible callouts are not supported. Source files and manifests keep the original syntax.
+
 ### Frontmatter
 
 YAML frontmatter is optional. Use lowercase field names.
@@ -232,9 +255,9 @@ Set `stylesheet: '.storybook/markdown.css'` to override the defaults:
 }
 ```
 
-Variables cover typography, spacing, links, code, tables, images, and chips. Defaults follow Storybook’s Docs theme in light and dark mode.
+Variables cover typography, spacing, links, code, tables, images, chips, and callouts. Defaults follow Storybook’s Docs theme in light and dark mode.
 
-See [Styling](STYLING.md) for all variables, status colors, theme switching, and custom layouts or Markdown renderers. The [example stylesheet](https://github.com/ruijdacd/storybook-addon-md/blob/main/example/.storybook/markdown.css) provides a complete GitHub-inspired theme.
+See [Styling](STYLING.md) for all variables, status and callout colors, theme switching, and custom layouts or Markdown renderers. The [example stylesheet](https://github.com/ruijdacd/storybook-addon-md/blob/main/example/.storybook/markdown.css) provides a complete GitHub-inspired theme.
 
 ## Links and limitations
 
@@ -261,6 +284,6 @@ Choose either example. They share stories, Markdown, and styling, with separate 
 
 The MCP example enables `manifests: true` and `@storybook/addon-mcp`. Connect your MCP client to `http://localhost:6007/mcp`. Static builds write to `storybook-static/` and `storybook-static-mcp/`, respectively. MCP is a development dependency for the example only; normal addon usage does not require it.
 
-Browse **Guides → Introduction**, **Components → Button**, and **Components → Toggle** for standalone, attached, and shared docs with system light/dark styling.
+Browse **Guides → Introduction**, **Guides → Callouts**, **Components → Button**, and **Components → Toggle** for standalone, attached, and shared docs with system light/dark styling.
 
 See [Contributing](CONTRIBUTING.md) for tests and releases, or [open an issue](https://github.com/ruijdacd/storybook-addon-md/issues).

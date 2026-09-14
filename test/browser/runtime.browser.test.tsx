@@ -244,3 +244,142 @@ test('extra metadata fields are not displayed by default', async () => {
   await render(themes.light, [{ ...document, metadata: { category: 'Hidden' } }]);
   expect(container.querySelector('.storybook-addon-md-tags')).toBeNull();
 });
+
+const callouts = [
+  '> \\[!NOTE]\n> Additional *context* with a [link](https://example.com/guide).',
+  '> \\[!TIP]\n> Recommended approach.\n>\n> - First item\n> - Second item',
+  '> \\[!IMPORTANT]\n>\n> Separate paragraph.\n>\n> Second paragraph.',
+  '> \\[!WARNING]\n> Something that requires care.\n>\n> ```js\n> const value = 1;\n> ```',
+  '> \\[!caution]\n> A risk or destructive consequence.',
+  '> Plain quotation.',
+  '> \\[!FOOTNOTE]\n> Unknown marker.',
+  '> \\[!NOTE] Same line.',
+  '> \\[!NOTE]*Inline* follows.',
+  '> Text first.\n> \\[!NOTE]',
+].join('\n\n');
+
+test('callouts render labels, keep nested Markdown, and leave other blockquotes alone', async () => {
+  await render(themes.light, [{ ...document, markdown: callouts }]);
+
+  const elements = container.querySelectorAll('.storybook-addon-md-callout');
+
+  expect([...elements].map((element) => element.getAttribute('data-callout'))).toEqual([
+    'note',
+    'tip',
+    'important',
+    'warning',
+    'caution',
+  ]);
+  expect(
+    [...container.querySelectorAll('.storybook-addon-md-callout-label')].map(
+      (label) => label.textContent,
+    ),
+  ).toEqual(['Note', 'Tip', 'Important', 'Warning', 'Caution']);
+  for (const element of elements) expect(element.textContent).not.toContain('[!');
+  expect(elements[0].querySelector('em')?.textContent).toBe('context');
+  expect(elements[0].querySelector('a')?.getAttribute('href')).toBe('https://example.com/guide');
+  expect([...elements[1].querySelectorAll('li')].map((item) => item.textContent)).toEqual([
+    'First item',
+    'Second item',
+  ]);
+  expect(elements[2].querySelectorAll('p')).toHaveLength(3);
+  await expect.poll(() => elements[3].querySelectorAll('pre.prismjs').length).toBe(1);
+  expect(elements[3].textContent).toContain('const value = 1;');
+  expect(getComputedStyle(elements[3].querySelector(':scope > pre')!).padding).toBe('0px');
+  expect(getComputedStyle(elements[3].querySelector(':scope > pre')!).borderStyle).toBe('none');
+
+  const quotes = container.querySelectorAll('blockquote');
+
+  expect([...quotes].map((quote) => quote.textContent)).toEqual([
+    'Plain quotation.',
+    '[!FOOTNOTE]\nUnknown marker.',
+    '[!NOTE] Same line.',
+    '[!NOTE]Inline follows.',
+    'Text first.\n[!NOTE]',
+  ]);
+  expect(elements[0].getAttribute('role')).toBeNull();
+  expect(container.querySelector('[aria-live], [role="alert"]')).toBeNull();
+});
+
+for (const [name, theme] of [
+  ['light', themes.light],
+  ['dark', themes.dark],
+] as const) {
+  test(`${name} callouts use distinct theme colors for labels and borders`, async () => {
+    await render(theme, [{ ...document, markdown: callouts }]);
+
+    const colors = [...container.querySelectorAll('.storybook-addon-md-callout')].map((element) => {
+      const label = element.querySelector('.storybook-addon-md-callout-label')!;
+
+      return {
+        label: getComputedStyle(label).color,
+        border: getComputedStyle(element).borderInlineStartColor,
+        text: getComputedStyle(element.querySelector('p:not(.storybook-addon-md-callout-label)')!)
+          .color,
+      };
+    });
+
+    expect(new Set(colors.map((color) => color.label)).size).toBe(5);
+
+    for (const color of colors) {
+      expect(color.border).toBe(color.label);
+      expect(color.label).not.toBe(color.text);
+      expect(color.label).not.toBe('rgba(0, 0, 0, 0)');
+    }
+
+    const expected = globalThis.document.createElement('span');
+
+    expected.style.color = convert(theme).color.defaultText;
+    container.append(expected);
+    expect(colors[0].text).toBe(getComputedStyle(expected).color);
+    expected.remove();
+  });
+}
+
+test('CSS variables control callout colors, borders, spacing, and typography', async () => {
+  container.style.cssText = [
+    '--sbmd-callout-note-color: rgb(1, 2, 3)',
+    '--sbmd-callout-caution-color: rgb(4, 5, 6)',
+    '--sbmd-callout-background: rgb(7, 8, 9)',
+    '--sbmd-callout-color: rgb(10, 11, 12)',
+    '--sbmd-callout-padding: 17px',
+    '--sbmd-callout-margin: 19px 0',
+    '--sbmd-callout-radius: 5px',
+    '--sbmd-callout-label-weight: 900',
+    '--sbmd-callout-label-size: 21px',
+    '--sbmd-callout-label-margin: 13px',
+  ].join('; ');
+  await render(themes.light, [{ ...document, markdown: callouts }]);
+
+  const [note, tip, , , caution] = container.querySelectorAll('.storybook-addon-md-callout');
+  const label = note.querySelector('.storybook-addon-md-callout-label')!;
+  const tipLabel = tip.querySelector('.storybook-addon-md-callout-label')!;
+
+  expect(getComputedStyle(label).color).toBe('rgb(1, 2, 3)');
+  expect(getComputedStyle(note).borderInlineStartColor).toBe('rgb(1, 2, 3)');
+  expect(getComputedStyle(caution).borderInlineStartColor).toBe('rgb(4, 5, 6)');
+  expect(getComputedStyle(tipLabel).color).not.toBe('rgb(1, 2, 3)');
+  expect(getComputedStyle(note).backgroundColor).toBe('rgb(7, 8, 9)');
+  expect(getComputedStyle(note.querySelector('p:not([class])')!).color).toBe('rgb(10, 11, 12)');
+  expect(getComputedStyle(note).padding).toBe('17px');
+  expect(getComputedStyle(note).margin).toBe('19px 0px');
+  expect(getComputedStyle(note).borderRadius).toBe('5px');
+  expect(getComputedStyle(label).fontWeight).toBe('900');
+  expect(getComputedStyle(label).fontSize).toBe('21px');
+  expect(getComputedStyle(label).marginBottom).toBe('13px');
+  expect(getComputedStyle(label.nextElementSibling!).marginTop).toBe('0px');
+  expect(getComputedStyle(note.lastElementChild!).marginBottom).toBe('0px');
+
+  container.style.cssText = '--sbmd-callout-border: 2px dashed rgb(20, 21, 22)';
+  expect(getComputedStyle(caution).borderInlineStartStyle).toBe('dashed');
+  expect(getComputedStyle(caution).borderInlineStartColor).toBe('rgb(20, 21, 22)');
+});
+
+test('custom renderers receive callouts as GitHub alert syntax', async () => {
+  const MarkdownRenderer = ({ markdown }: MarkdownDocument) => <pre>{markdown}</pre>;
+
+  await render(themes.light, [{ ...document, markdown: callouts }], { MarkdownRenderer });
+
+  expect(container.querySelector('pre')?.textContent).toContain('> \\[!NOTE]\n> Additional');
+  expect(container.querySelector('.storybook-addon-md-callout')).toBeNull();
+});
