@@ -467,14 +467,7 @@ test('custom renderers receive callouts as GitHub alert syntax', async () => {
   expect(container.querySelector('.storybook-addon-md-callout')).toBeNull();
 });
 
-test('Storybook path links navigate through the preview channel without reloading', async () => {
-  const { addons, mockChannel } = await import('storybook/preview-api');
-  const channel = mockChannel();
-  const emitted: unknown[][] = [];
-
-  channel.on('navigateUrl', (...args: unknown[]) => emitted.push(args));
-  addons.setChannel(channel);
-
+test('Storybook path links point at the manager and open in the top frame', async () => {
   await render(themes.light, [
     {
       source: 'Links.md',
@@ -484,23 +477,20 @@ test('Storybook path links navigate through the preview channel without reloadin
     },
   ]);
 
-  const location = window.location.href;
   const guide = page.getByRole('link', { name: 'Guide' });
 
   await expect
     .element(guide)
     .toHaveAttribute(
       'href',
-      new URL('?path=/docs/guides-guide--docs#usage', new URL('./', location)).href,
+      new URL('?path=/docs/guides-guide--docs#usage', new URL('./', window.location.href)).href,
     );
-  await guide.click();
-  expect(emitted).toEqual([['?path=/docs/guides-guide--docs#usage']]);
-  expect(window.location.href).toBe(location);
-
-  const site = page.getByRole('link', { name: 'Site' });
-
-  await expect.element(site).toHaveAttribute('href', 'https://example.com/');
-  await site.click({ modifiers: ['Meta'] });
-  await page.getByRole('link', { name: 'Anchor' }).click();
-  expect(emitted).toHaveLength(1);
+  await expect.element(guide).toHaveAttribute('target', '_top');
+  await expect
+    .element(page.getByRole('link', { name: 'Site' }))
+    .toHaveAttribute('href', 'https://example.com/');
+  await expect.element(page.getByRole('link', { name: 'Site' })).not.toHaveAttribute('target');
+  await expect
+    .element(page.getByRole('link', { name: 'Anchor' }))
+    .toHaveAttribute('href', '#usage');
 });

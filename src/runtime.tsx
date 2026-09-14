@@ -1,9 +1,7 @@
-import type { ComponentProps, CSSProperties, MouseEvent, ReactNode } from 'react';
+import type { ComponentProps, CSSProperties, ReactNode } from 'react';
 import { Children, cloneElement, isValidElement } from 'react';
 import type { StorybookTheme } from 'storybook/theming';
 import { useTheme } from 'storybook/theming';
-import { addons } from 'storybook/preview-api';
-import { NAVIGATE_URL } from 'storybook/internal/core-events';
 import type { MarkdownDocument, LayoutProps, Presentation } from './types.js';
 import {
   Markdown,
@@ -57,52 +55,16 @@ function Blockquote({ children, ...props }: ComponentProps<'blockquote'>) {
   );
 }
 
-const managerBase = () => new URL('./', window.location.href);
+function Anchor({ href, target, ...props }: ComponentProps<'a'>) {
+  if (!href?.startsWith('?path=')) return <a {...props} href={href} target={target} />;
 
-function storybookPath(href: string | null | undefined) {
-  if (!href) return undefined;
-
-  if (href.startsWith('?path=')) return href;
-
-  try {
-    const base = managerBase();
-    const url = new URL(href, base);
-
-    return url.origin === base.origin &&
-      url.pathname === base.pathname &&
-      url.search.startsWith('?path=')
-      ? `${url.search}${url.hash}`
-      : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-function Anchor({ href, ...props }: ComponentProps<'a'>) {
-  const path = storybookPath(href);
-
-  return <a {...props} href={path ? new URL(path, managerBase()).href : href} />;
-}
-
-function navigate(event: MouseEvent<HTMLDivElement>) {
-  const anchor = (event.target as Element).closest('a');
-  const path = storybookPath(anchor?.getAttribute('href'));
-
-  if (
-    !anchor ||
-    !path ||
-    !event.currentTarget.contains(anchor) ||
-    anchor.target === '_blank' ||
-    event.button !== 0 ||
-    event.altKey ||
-    event.ctrlKey ||
-    event.metaKey ||
-    event.shiftKey
-  )
-    return;
-
-  event.preventDefault();
-  addons.getChannel().emit(NAVIGATE_URL, path);
+  return (
+    <a
+      {...props}
+      href={new URL(href, new URL('./', window.location.href)).href}
+      target={target ?? '_top'}
+    />
+  );
 }
 
 export function DefaultMarkdownRenderer({ markdown }: MarkdownDocument) {
@@ -232,7 +194,7 @@ export function Documentation({
         tagFields={tagFields}
       >
         {documents.map((document) => (
-          <div className="storybook-addon-md" key={document.source} onClick={navigate}>
+          <div className="storybook-addon-md" key={document.source}>
             <Renderer {...document} />
           </div>
         ))}

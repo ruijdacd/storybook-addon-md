@@ -286,25 +286,19 @@ for (const [mode, port, suffix] of [
   ['development custom name', 16009, 'reference'],
   ['static custom name', 16010, 'reference'],
 ] as const) {
-  test(`${mode}: document links navigate the manager without reloading the preview`, async ({
-    page,
-  }) => {
+  test(`${mode}: document links open the linked Docs page in the manager`, async ({ page }) => {
     await page.goto(`http://localhost:${port}/?path=/docs/guides-introduction--${suffix}`, {
       waitUntil: 'domcontentloaded',
     });
 
     const preview = page.frameLocator('#storybook-preview-iframe');
-    const wrapper = preview.locator('.sbdocs-wrapper');
     const link = preview.getByRole('link', { name: 'shared guidance' });
 
     await expect(link).toHaveAttribute(
       'href',
       `http://localhost:${port}/?path=/docs/components-button--${suffix}`,
     );
-
-    const managerOrigin = await page.evaluate(() => performance.timeOrigin);
-    const previewOrigin = await wrapper.evaluate(() => performance.timeOrigin);
-
+    await expect(link).toHaveAttribute('target', '_top');
     await link.click();
 
     await expect(page).toHaveURL(new RegExp(`path=/docs/components-button--${suffix}`));
@@ -312,8 +306,6 @@ for (const [mode, port, suffix] of [
     await expect(page.locator('.sidebar-container [data-selected="true"]')).toContainText(
       /Docs|Reference/,
     );
-    expect(await page.evaluate(() => performance.timeOrigin)).toBe(managerOrigin);
-    expect(await wrapper.evaluate(() => performance.timeOrigin)).toBe(previewOrigin);
   });
 }
 
