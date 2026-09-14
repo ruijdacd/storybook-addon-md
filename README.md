@@ -1,5 +1,8 @@
 # Storybook Markdown
 
+[![npm version](https://img.shields.io/npm/v/storybook-addon-md)](https://www.npmjs.com/package/storybook-addon-md)
+[![CI](https://github.com/ruijdacd/storybook-addon-md/actions/workflows/ci.yml/badge.svg)](https://github.com/ruijdacd/storybook-addon-md/actions/workflows/ci.yml)
+
 Write ordinary `.md` files and browse them inside Storybook. Attach documentation to component stories or create standalone pages, with no JSX, imports, or MDX wrappers to maintain.
 
 - Discover Markdown automatically, including live additions, edits, and deletions.
