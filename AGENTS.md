@@ -11,7 +11,7 @@ Read [README.md](README.md) before changing behavior, configuration, or supporte
 - Preserve plain Markdown authoring. Generated wrappers and assets are disposable; change their source, not generated files.
 - Do not add code comments, attribution lines, or co-author trailers. Write concise, natural documentation.
 - Commit and push only when explicitly requested. Use the configured Git identity, conventional commit/PR titles, and change-type prefixes for new branches.
-- When asked to create or update a PR, use `agent-pr` and keep its description to 2–3 sentences.
+- Keep PR descriptions to 2–3 sentences.
 
 # Verification
 

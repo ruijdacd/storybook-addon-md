@@ -1,7 +1,7 @@
 # Security
 
-Security fixes target the latest release. Please check whether an issue still occurs on that version before reporting it.
+Report vulnerabilities privately through [GitHub's vulnerability reporting form](https://github.com/ruijdacd/storybook-addon-md/security/advisories/new). Keep vulnerability details out of public issues and pull requests until a fix is available and disclosure is agreed.
 
-Report vulnerabilities privately through [GitHub's security advisory form](https://github.com/ruijdacd/storybook-addon-md/security/advisories/new). Include the affected version, reproduction steps, and the potential impact. Do not include credentials or unrelated private project files.
+Include the affected version, reproduction steps, and the potential impact. Do not include credentials or unrelated private project files. You will receive an acknowledgement within a week, and a fix or mitigation will be published with a changelog entry once it is ready.
 
-If the form is unavailable, open an issue asking the maintainer for a private reporting channel without describing the vulnerability. Keep technical details out of public issues and pull requests until a fix is available and disclosure is agreed.
+Only the latest published version receives security fixes.
