@@ -360,12 +360,21 @@ test('CSS variables control callout colors, borders, spacing, and typography', a
   expect(getComputedStyle(label.nextElementSibling!).marginTop).toBe('0px');
   expect(getComputedStyle(note.lastElementChild!).marginBottom).toBe('0px');
 
-  container.style.cssText = '--sbmd-quote-border: 2px dashed rgb(20, 21, 22)';
-  expect(getComputedStyle(caution).borderInlineStartStyle).toBe('dashed');
-  expect(getComputedStyle(caution).borderInlineStartWidth).toBe('2px');
-  expect(getComputedStyle(caution).borderInlineStartColor).not.toBe('rgb(20, 21, 22)');
+  container.style.cssText =
+    '--sbmd-quote-border: 2px dashed rgb(20, 21, 22); --sbmd-callout-background: rgb(7, 8, 9)';
+  expect(getComputedStyle(caution).borderInlineStartStyle).toBe('solid');
+  expect(getComputedStyle(caution).backgroundColor).toBe('rgb(7, 8, 9)');
   expect(getComputedStyle(container.querySelector('blockquote')!).borderInlineStartColor).toBe(
     'rgb(20, 21, 22)',
+  );
+
+  container.removeAttribute('style');
+  (caution as HTMLElement).style.cssText =
+    '--sbmd-callout-border: 3px dashed var(--sbmd-callout-accent)';
+  expect(getComputedStyle(caution).borderInlineStartStyle).toBe('dashed');
+  expect(getComputedStyle(caution).borderInlineStartWidth).toBe('3px');
+  expect(getComputedStyle(caution).borderInlineStartColor).toBe(
+    getComputedStyle(caution.querySelector('.storybook-addon-md-callout-label')!).color,
   );
 });
 
@@ -398,6 +407,55 @@ test('shared tokens drive borders, spacing, radii, and the title size', async ()
   expect(getComputedStyle(container.querySelector('hr')!).marginTop).toBe('29px');
   expect(getComputedStyle(code).borderRadius).toBe('11px');
   expect(getComputedStyle(title).fontSize).toBe('41px');
+});
+
+test('element variables style the page, links, quotes, tables, and images', async () => {
+  container.style.cssText = [
+    '--sbmd-page-max-width: 100px',
+    '--sbmd-page-margin: 0 auto',
+    '--sbmd-page-padding: 12px',
+    '--sbmd-page-background: rgb(1, 1, 1)',
+    '--sbmd-accent-color: rgb(2, 2, 2)',
+    '--sbmd-link-decoration: underline 3px',
+    '--sbmd-link-underline-offset: 5px',
+    '--sbmd-radius: 9px',
+    '--sbmd-quote-background: rgb(3, 3, 3)',
+    '--sbmd-table-border: 2px dotted rgb(4, 4, 4)',
+    '--sbmd-table-heading-background: rgb(5, 5, 5)',
+    '--sbmd-image-border: 2px solid rgb(6, 6, 6)',
+  ].join('; ');
+  await render(themes.light, [
+    {
+      ...document,
+      markdown: `${document.markdown}\n\nA [link](https://example.com) and \`code\`.\n\n![Alt](data:image/gif;base64,R0lGODlhAQABAAAAACw=)\n\n- [ ] Task`,
+    },
+  ]);
+
+  const pageElement = container.querySelector<HTMLElement>('.storybook-addon-md-page')!;
+  const link = container.querySelector('a')!;
+  const quote = container.querySelector('blockquote')!;
+  const th = container.querySelector('th')!;
+  const image = container.querySelector('img')!;
+
+  expect(getComputedStyle(pageElement).maxWidth).toBe('100px');
+  expect(getComputedStyle(pageElement).marginLeft).not.toBe('0px');
+  expect(getComputedStyle(pageElement).padding).toBe('12px');
+  expect(getComputedStyle(pageElement).backgroundColor).toBe('rgb(1, 1, 1)');
+  expect(getComputedStyle(link).color).toBe('rgb(2, 2, 2)');
+  expect(getComputedStyle(link).textDecorationLine).toBe('underline');
+  expect(getComputedStyle(link).textDecorationThickness).toBe('3px');
+  expect(getComputedStyle(link).textUnderlineOffset).toBe('5px');
+  expect(getComputedStyle(quote).backgroundColor).toBe('rgb(3, 3, 3)');
+  expect(getComputedStyle(quote).borderRadius).toBe('9px');
+  expect(getComputedStyle(container.querySelector('code')!).borderRadius).toBe('9px');
+  expect(getComputedStyle(th).borderTopStyle).toBe('dotted');
+  expect(getComputedStyle(th).borderTopColor).toBe('rgb(4, 4, 4)');
+  expect(getComputedStyle(th).backgroundColor).toBe('rgb(5, 5, 5)');
+  expect(getComputedStyle(image).borderTopColor).toBe('rgb(6, 6, 6)');
+  expect(getComputedStyle(image).borderRadius).toBe('9px');
+  expect(getComputedStyle(container.querySelector('input[type="checkbox"]')!).accentColor).toBe(
+    'rgb(2, 2, 2)',
+  );
 });
 
 test('custom renderers receive callouts as GitHub alert syntax', async () => {
