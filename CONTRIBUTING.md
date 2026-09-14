@@ -8,7 +8,7 @@ nub exec playwright install chromium
 nub run storybook
 ```
 
-The repository uses a hoisted dependency layout and standard Node without Nub runtime hooks. CI installs from `nub.lock` with `--frozen-lockfile`.
+The repository uses a hoisted dependency layout and standard Node without Nub runtime hooks. CI installs from `nub.lock` with `--frozen-lockfile --ignore-scripts`.
 
 The package build uses [tsdown](https://tsdown.dev) to emit ESM and TypeScript declarations and copy `src/styles.css` into `dist/`. `nub run check` runs the build followed by TypeScript type-checking.
 
@@ -40,6 +40,21 @@ Run `nub run changeset` for user-facing changes. Choose a version bump and inclu
 
 After CI passes on `main`, Changesets opens or updates a release PR with the version and changelog. Merging it publishes the package after CI passes again.
 
+The release workflow checks out the exact commit that passed CI. A read-only job selects the release mode and builds and packs unpublished packages. Separate jobs update the release PR or publish the packed artifact. Only the publish job receives an npm OIDC token, and it skips lifecycle scripts. Checkouts do not retain GitHub credentials, privileged jobs disable dependency caches, and Dependabot keeps workflow action SHA pins up to date.
+
 npm trusted publishing is configured for `ruijdacd/storybook-addon-md`, workflow `release.yml`, with no environment. No `NPM_TOKEN` secret is needed. GitHub Actions must be allowed to create and approve pull requests in the repository settings.
 
 Release PRs created with GitHub’s automatic token do not trigger PR workflows. If required checks block merging, close and reopen the PR yourself to trigger them. The release workflow always waits for CI on the merged commit.
+
+Follow [e18e's publishing guidance](https://e18e.dev/docs/publishing.html) when maintaining repository settings. Keep private vulnerability reporting and approval for first-time contributors enabled, and require the `verify` status check on `main`. Enable required action SHA pinning after the pinned workflows are merged. A restricted publishing environment must also be configured in npm's trusted publisher before adding it to the workflow. Staged npm publishing is an optional switch from the current automatic release flow.
+
+## Deploy the example
+
+The [live example](https://storybook-addon-md.netlify.app) is deployed manually to Netlify from the default Storybook configuration. Build and deploy it with:
+
+```sh
+nub run build-storybook
+npx netlify-cli deploy --site storybook-addon-md --no-build --prod
+```
+
+Sign in with `npx netlify-cli login` first. `netlify.toml` points to `storybook-static/`; only that build output is uploaded. Pushing to GitHub does not redeploy the example.

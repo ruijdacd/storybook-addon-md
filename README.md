@@ -1,6 +1,11 @@
 # Storybook Markdown
 
+[![npm version](https://img.shields.io/npm/v/storybook-addon-md)](https://www.npmjs.com/package/storybook-addon-md)
+[![CI](https://github.com/ruijdacd/storybook-addon-md/actions/workflows/ci.yml/badge.svg)](https://github.com/ruijdacd/storybook-addon-md/actions/workflows/ci.yml)
+
 Write ordinary `.md` files and browse them inside Storybook. Attach documentation to component stories or create standalone pages, with no JSX, imports, or MDX wrappers to maintain.
+
+[Try the live example](https://storybook-addon-md.netlify.app/?path=/docs/guides-introduction--docs).
 
 - Discover Markdown automatically, including live additions, edits, and deletions.
 - Show component docs alongside existing examples and generated props.
@@ -9,8 +14,10 @@ Write ordinary `.md` files and browse them inside Storybook. Attach documentatio
 
 ## Install
 
+We recommend [ni](https://github.com/antfu-collective/ni#readme) to install dependencies with your project's package manager. Install it first with `npm install -g @antfu/ni`, then run:
+
 ```sh
-nub add -D storybook-addon-md @storybook/addon-docs@10.6.0
+ni -D storybook-addon-md @storybook/addon-docs@10.6.0
 ```
 
 Tested with **Storybook 10.6.0**, **React Vite 10.6.0**, **Vite 7.3.6**, and **React 19.2.4**. Requires Node 22.13+. Other builders and renderers are not tested.

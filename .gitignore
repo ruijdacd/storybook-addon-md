@@ -1,4 +1,5 @@
 node_modules/
+.netlify/
 storybook-static/
 storybook-static-mcp/
 storybook-markdown-generated/
